@@ -1,4 +1,4 @@
-from searchresult import SearchResult
+from seating_numpy import State
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
 
 
@@ -44,7 +44,7 @@ class SeatingMaster(object):
             return 'None'
 
     def report_state(self, data):
-        if self.state_keeper.challenge_state(SearchResult.from_json(data)):
+        if self.state_keeper.challenge_state(State.from_json(data)):
             return 'Accepted'
         else:
             return 'Discarded'

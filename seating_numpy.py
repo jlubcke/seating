@@ -1,5 +1,6 @@
 import numpy
 import random
+import simplejson
 
 
 class State(object):
@@ -14,6 +15,21 @@ class State(object):
     @property
     def persons(self):
         return self.seating.shape[0]
+
+    @staticmethod
+    def from_json(json):
+        print json
+        state_as_dict = simplejson.loads(json)
+        return State(meal_indexes=state_as_dict['meal_indexes'],
+                     seating=numpy.array(state_as_dict['seating']),
+                     geometry=numpy.array(state_as_dict['geometry']))
+
+    def to_json(self):
+        return simplejson.dumps({
+            "meal_indexes": self.meal_indexes,
+            "seating": self.seating.tolist(),
+            "geometry": self.geometry.tolist()
+        })
 
     def copy(self):
         return State(meal_indexes=self.meal_indexes,
@@ -74,7 +90,6 @@ class BlindStepper(Stepper):
 
 
 class ClosenessStepper(Stepper):
-
     def __init__(self, closeness_evaluator):
         self.closeness_evaluator = closeness_evaluator
 
@@ -98,7 +113,6 @@ class ClosenessEvaluator(object):
 
 
 class TablePositionAgnosticClosnessEvaluator(ClosenessEvaluator):
-
     def closeness(self, state):
         if state.closeness is not None:
             return state.closeness
@@ -136,7 +150,6 @@ class Searcher(object):
 
 
 class SingleThreadedSearcher(Searcher):
-
     def __init__(self, stepper, state_evaluator, logger):
         self.stepper = stepper
         self.state_evaluator = state_evaluator
@@ -199,6 +212,7 @@ def main():
     n = evaluator.closeness(state)
     n[n == 1] = 0
     print n.sum(axis=0)
+
 
 if __name__ == '__main__':
     main()

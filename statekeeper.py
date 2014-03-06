@@ -10,8 +10,8 @@ class StateEvaluator(object):
 
 
 class StateKeeper(object):
-    def __init__(self, challenge_evaluator):
-        self._current_state = None
+    def __init__(self, challenge_evaluator, state=None):
+        self._current_state = state
         assert issubclass(type(challenge_evaluator), StateEvaluator)
         self.challenge_evaluator = challenge_evaluator
 

@@ -1,5 +1,6 @@
-from time import sleep
 import requests
+from seating_numpy import State, TablePositionAgnosticClosnessEvaluator, SingleThreadedSearcher, ClosenessStepper, \
+    SquareStateEvaluator, PrintLogger
 
 
 class SeatingSlave(object):
@@ -8,7 +9,14 @@ class SeatingSlave(object):
         self.port = port
 
     def run(self):
+        evaluator = TablePositionAgnosticClosnessEvaluator()
+        searcher = SingleThreadedSearcher(
+            ClosenessStepper(evaluator),
+            SquareStateEvaluator(evaluator),
+            PrintLogger()
+        )
         while True:
             response = requests.get('http://%s:%s/get_best_state' % (self.addr, self.port))
-            print response.content
-            sleep(5)
+            state = State.from_json(response.content)
+            state, _ = searcher.search(state, n=100)
+            requests.post('http://%s:%s/report_state/' % (self.addr, self.port), data=state.to_json())
