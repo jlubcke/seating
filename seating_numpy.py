@@ -1,12 +1,17 @@
-import numpy
+from StringIO import StringIO
 import random
+import sys
+
+import numpy
 import simplejson
 
 
 class State(object):
 
-    def __init__(self, meal_indexes=None, seating=None, geometry=None):
+    def __init__(self, names=None, meal_names=None, meal_indexes=None, seating=None, geometry=None):
 
+        self.names = names
+        self.meal_names = meal_names
         self.meal_indexes = meal_indexes
         self.seating = seating
         self.geometry = geometry
@@ -32,7 +37,9 @@ class State(object):
         })
 
     def copy(self):
-        return State(meal_indexes=self.meal_indexes,
+        return State(names=self.names,
+                     meal_names=self.meal_names,
+                     meal_indexes=self.meal_indexes,
                      seating=self.seating.copy(),
                      geometry=self.geometry.copy())
 
@@ -189,8 +196,80 @@ class PrintLogger(object):
         print msg
 
 
+def parse(filename):
+
+    meal_names = []
+    meals = []
+
+    meal = []
+    table = []
+
+    with open(filename, "rb") as f:
+        for line in f:
+            if line.startswith('*'):
+                meal_names.append(line[1:].strip())
+                if meal:
+                    meals.append(meal)
+                meal = []
+            elif line.strip() == '':
+                if table:
+                    meal.append(table)
+                table = []
+            else:
+                table.append(line.strip())
+        if table:
+            meal.append(table)
+        if meal:
+            meals.append(meal)
+
+
+    cnt = 0
+    meal_indexes = []
+    for m in meals:
+        meal_indexes.append((cnt, cnt + len(m)))
+        cnt += len(m)
+
+    state = State()
+
+    names = list({x for m in meals for t in m for x in t})
+    state.names = names
+    state.meal_names = meal_names
+    state.meal_indexes = meal_indexes
+
+    state.seating = numpy.zeros((len(names), meal_indexes[-1][1]), dtype=int)
+
+    persons_by_name = {name: idx for idx, name in enumerate(names)}
+    cnt = 0
+    for m in meals:
+        for t in m:
+            for p in t:
+                state.seating[persons_by_name[p], cnt] = 1
+            cnt += 1
+
+    state.geometry = state.seating.transpose()
+
+    return state
+
+
+def export(state):
+    result = StringIO()
+
+    for m, (i, j) in enumerate(state.meal_indexes):
+        result.write('* ' + state.meal_names[m] + "\n\n")
+        for t in range(i, j):
+            for p in numpy.where(state.seating[:, t] == 1)[0]:
+                result.write('  ' + state.names[p] + '\n')
+            result.write('\n')
+        result.write('\n')
+    return result.getvalue()
+
+
+
 def main():
-    start = start_seating()
+    if len(sys.argv) == 2:
+        start = parse(sys.argv[1])
+    else:
+        start = start_seating()
     print start.seating
     dump(start)
     evaluator = TablePositionAgnosticClosnessEvaluator()
@@ -212,6 +291,8 @@ def main():
     n = evaluator.closeness(state)
     n[n == 1] = 0
     print n.sum(axis=0)
+
+    print export(state)
 
 
 if __name__ == '__main__':
