@@ -1,44 +1,61 @@
 import numpy
+import random
 
 
 class State(object):
-    
-    def __init__(self, persons=150, meals=5, positions=15, seating=None, geometry=None):
 
-        self.persons = persons
-        self.meals = meals
-        self.positions = positions
-        self.energy = None
+    def __init__(self, meal_indexes=None, seating=None, geometry=None):
 
-        if seating is not None:
-            self.seating = seating
-            self.geometry = geometry
-        else:
-            self.set_start_seating()
-
+        self.meal_indexes = meal_indexes
+        self.seating = seating
+        self.geometry = geometry
         self.closeness = None
 
-    def set_start_seating(self):
-        self.seating = numpy.zeros((self.persons, self.meals * self.positions), dtype=int)
-        persons_per_table = self.persons / self.positions
-        for m in range(self.meals):
-            first_table_index = m * self.positions
-            for t in range(self.persons):
-                self.seating[t, first_table_index + t / persons_per_table] = 1
-        self.geometry = self.seating.transpose()
+    @property
+    def persons(self):
+        return self.seating.shape[0]
 
-    def swap(self, m, p1, p2):
-        i, j = m * self.positions, (m+1) * self.positions
+    def copy(self):
+        return State(meal_indexes=self.meal_indexes,
+                     seating=self.seating.copy(),
+                     geometry=self.geometry.copy())
+
+    def swap(self, i, j, p1, p2):
+        if not self.seating[p1, i:j].any() or not self.seating[p2, i:j].any():
+            return
         self.seating[p1, i:j], self.seating[p2, i:j] = self.seating[p2, i:j].copy(), self.seating[p1, i:j].copy()
         self.geometry[i:j, p1], self.geometry[i:j, p2] = self.geometry[i:j, p2].copy(), self.geometry[i:j, p1].copy()
         self.closeness = None
 
-    def copy(self):
-        return State(persons=self.persons,
-                     meals=self.meals,
-                     positions=self.positions,
-                     seating=self.seating.copy(),
-                     geometry=self.geometry.copy())
+
+def start_seating(persons=150, meals=5, groups=10, positions=15):
+
+    state = State()
+
+    state.seating = numpy.zeros((persons, meals * positions + groups), dtype=int)
+
+    state.meal_indexes = [(i*positions, (i+1)*positions) for i in range(meals)]
+
+    # Some random groups
+    state.seating[:, meals*positions:(meals*positions + groups)] = numpy.random.random_integers(0, 1, size=(persons, groups))
+
+    # Naive initial seating
+    for m, (i, j) in enumerate(state.meal_indexes):
+        persons_per_table = persons / (j - i)
+        t1 = range(0, persons/2)
+        t2 = range(persons/2, persons)
+        if m == 0:
+            persons_at_meal = t1
+        elif m == meals - 1:
+            persons_at_meal = t2
+        else:
+            persons_at_meal = t1 + t2
+        for k, p in enumerate(persons_at_meal):
+            state.seating[p, i + k / persons_per_table] = 1
+
+    state.geometry = state.seating.transpose()
+
+    return state
 
 
 class Stepper(object):
@@ -49,7 +66,8 @@ class Stepper(object):
 class BlindStepper(Stepper):
     def step(self, state):
         result = state.copy()
-        result.swap(numpy.random.choice(state.meals),
+        i, j = random.choice(state.meal_indexes)
+        result.swap(i, j,
                     numpy.random.choice(state.persons),
                     numpy.random.choice(state.persons))
         return result
@@ -63,7 +81,8 @@ class ClosenessStepper(Stepper):
     def step(self, state):
         result = state.copy()
         c = self._candidates(state)
-        result.swap(numpy.random.choice(state.meals),
+        i, j = random.choice(state.meal_indexes)
+        result.swap(i, j,
                     numpy.random.choice(c),
                     numpy.random.choice(state.persons))
         return result
@@ -143,10 +162,10 @@ class SingleThreadedSearcher(Searcher):
 
 
 def dump(state):
-    for m in range(state.meals):
+    for m, (i, j) in enumerate(state.meal_indexes):
         print "-- %d" % m
-        for p in range(state.positions):
-            print "   ", (numpy.where(state.seating[:, (m*state.positions + p)] == 1)[0])
+        for p in range(i, j):
+            print "   ", (numpy.where(state.seating[:, p] == 1)[0])
 
 
 class PrintLogger(object):
@@ -158,8 +177,8 @@ class PrintLogger(object):
 
 
 def main():
-    start = State()
-    print start
+    start = start_seating()
+    print start.seating
     dump(start)
     evaluator = TablePositionAgnosticClosnessEvaluator()
     searcher = SingleThreadedSearcher(
