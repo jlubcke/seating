@@ -8,6 +8,7 @@ class State(object):
         self.persons = persons
         self.meals = meals
         self.positions = positions
+        self.energy = None
 
         if seating is not None:
             self.seating = seating
@@ -26,6 +27,12 @@ class State(object):
                 self.seating[t, first_table_index + t / persons_per_table] = 1
         self.geometry = self.seating.transpose()
 
+    def swap(self, m, p1, p2):
+        i, j = m * self.positions, (m+1) * self.positions
+        self.seating[p1, i:j], self.seating[p2, i:j] = self.seating[p2, i:j].copy(), self.seating[p1, i:j].copy()
+        self.geometry[i:j, p1], self.geometry[i:j, p2] = self.geometry[i:j, p2].copy(), self.geometry[i:j, p1].copy()
+        self.closeness = None
+
     def copy(self):
         return State(persons=self.persons,
                      meals=self.meals,
@@ -34,68 +41,105 @@ class State(object):
                      geometry=self.geometry.copy())
 
 
-def closeness(state):
-    if state.closeness is not None:
-        return state.closeness
-    result = numpy.dot(state.seating, state.geometry)
-    size = result.shape[0]
-    result[numpy.arange(size), numpy.arange(size)] = 0
-    state.closeness = result
-    return result
+class Stepper(object):
+    def step(self, state):
+        raise NotImplementedError
+
+
+class BlindStepper(Stepper):
+    def step(self, state):
+        result = state.copy()
+        result.swap(numpy.random.choice(state.meals),
+                    numpy.random.choice(state.persons),
+                    numpy.random.choice(state.persons))
+        return result
+
+
+class ClosenessStepper(Stepper):
+
+    def __init__(self, closeness_evaluator):
+        self.closeness_evaluator = closeness_evaluator
+
+    def step(self, state):
+        result = state.copy()
+        c = self._candidates(state)
+        result.swap(numpy.random.choice(state.meals),
+                    numpy.random.choice(c),
+                    numpy.random.choice(state.persons))
+        return result
+
+    def _candidates(self, state):
+        n = self.closeness_evaluator.closeness(state)
+        return numpy.where(n == n.max())[0]
+
+
+class ClosenessEvaluator(object):
+    def closeness(self, state):
+        raise NotImplementedError
+
+
+class TablePositionAgnosticClosnessEvaluator(ClosenessEvaluator):
+
+    def closeness(self, state):
+        if state.closeness is not None:
+            return state.closeness
+        result = numpy.dot(state.seating, state.geometry)
+        size = result.shape[0]
+        result[numpy.arange(size), numpy.arange(size)] = 0
+        state.closeness = result
+        return result
+
+
+class StateEvaluator(object):
+    def evaluate(self, state):
+        pass
+
+
+class SquareStateEvaluator(StateEvaluator):
+    def __init__(self, closeness_evaluator):
+        self.closeness_evaluator = closeness_evaluator
+
+    def evaluate(self, state):
+        return self._energy_sum(state) ** 2
+
+    def _energy_sum(self, state):
+        n = self.closeness_evaluator.closeness(state)
+        return sum(n[n > 1])
 
 
 def persons_at_each_table(state):
     return state.seating.sum(axis=0)
 
 
-def swap(state, m, p1, p2):
-    i, j = m * state.positions, (m+1) * state.positions
-    state.seating[p1, i:j], state.seating[p2, i:j] = state.seating[p2, i:j].copy(), state.seating[p1, i:j].copy()
-    state.geometry[i:j, p1], state.geometry[i:j, p2] = state.geometry[i:j, p2].copy(), state.geometry[i:j, p1].copy()
-    state.closeness = None
+class Searcher(object):
+    def search(self, start, iterations):
+        pass
 
 
-def blind_step(state):
-    result = state.copy()
-    swap(result, numpy.random.choice(state.meals), numpy.random.choice(state.persons), numpy.random.choice(state.persons))
-    return result
+class SingleThreadedSearcher(Searcher):
 
+    def __init__(self, stepper, state_evaluator, logger):
+        self.stepper = stepper
+        self.state_evaluator = state_evaluator
+        self.logger = logger
 
-def candidate_step(state):
-    result = state.copy()
-    c = candidates(state)
-    swap(result, numpy.random.choice(state.meals), numpy.random.choice(c), numpy.random.choice(state.persons))
-    return result
+    def log(self, msg):
+        self.logger.log(msg)
 
+    def search(self, start, n=10000):
+        self.log("Searching... ")
+        state = start
 
-def energy_sum(state):
-    n = closeness(state)
-    return sum(n[n > 1])
-
-
-def energy_square(state):
-    return energy_sum(state) ** 2
-
-
-def candidates(state):
-    n = closeness(state)
-    return numpy.where(n == n.max())[0]
-
-
-def search(start, step=candidate_step, energy=energy_square, n=10000):
-    print "Searching... ",
-    state = start
-
-    e = energy(state)
-    for t in range(n):
-        new_state = step(state)
-        new_e = energy(new_state)
-        if new_e < e:
-            state = new_state
-            e = new_e
-            print e,
-    print "Done"
-    return state
+        e = self.state_evaluator.evaluate(state)
+        for t in range(n):
+            new_state = self.stepper.step(state)
+            new_e = self.state_evaluator.evaluate(new_state)
+            if new_e < e:
+                state = new_state
+                e = new_e
+                self.log("New best energy: " + str(e))
+        self.log("Done")
+        return state, e
 
 
 def dump(state):
@@ -105,21 +149,35 @@ def dump(state):
             print "   ", (numpy.where(state.seating[:, (m*state.positions + p)] == 1)[0])
 
 
+class PrintLogger(object):
+    def __init__(self):
+        pass
+
+    def log(self, msg):
+        print msg
+
+
 def main():
     start = State()
     print start
     dump(start)
-    state = search(start)
+    evaluator = TablePositionAgnosticClosnessEvaluator()
+    searcher = SingleThreadedSearcher(
+        ClosenessStepper(evaluator),
+        SquareStateEvaluator(evaluator),
+        PrintLogger()
+    )
+    state, _ = searcher.search(start)
 
     print persons_at_each_table(state)
     print state.seating
     dump(state)
 
-    n = closeness(state)
+    n = evaluator.closeness(state)
     print n.max()
     print len(numpy.where(n == n.max())[0])
 
-    n = closeness(state)
+    n = evaluator.closeness(state)
     n[n == 1] = 0
     print n.sum(axis=0)
 
