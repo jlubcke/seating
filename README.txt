@@ -1,4 +1,5 @@
-
+python distributed_seating.py --addr 127.0.0.1 --port 5000
+python distributed_seating.py --addr 127.0.0.1 --port 5000 --slave
 
 virtualenv env
 . env/bin/activate
