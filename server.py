@@ -45,8 +45,10 @@ class SeatingMaster(object):
 
     def report_state(self, data):
         if self.state_keeper.challenge_state(State.from_json(data)):
+            print 'Accepted new best state'
             return 'Accepted'
         else:
+            print 'Discarded received state'
             return 'Discarded'
 
     def run(self):

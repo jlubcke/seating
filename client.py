@@ -18,5 +18,5 @@ class SeatingSlave(object):
         while True:
             response = requests.get('http://%s:%s/get_best_state' % (self.addr, self.port))
             state = State.from_json(response.content)
-            state, _ = searcher.search(state, n=100)
-            requests.post('http://%s:%s/report_state/' % (self.addr, self.port), data=state.to_json())
+            state, _ = searcher.search(state, n=1000)
+            requests.post('http://%s:%s/report_state' % (self.addr, self.port), data=state.to_json())

@@ -17,13 +17,13 @@ class State(object):
         self.geometry = geometry
         self.closeness = None
 
+
     @property
     def persons(self):
         return self.seating.shape[0]
 
     @staticmethod
     def from_json(json):
-        print json
         state_as_dict = simplejson.loads(json)
         return State(meal_indexes=state_as_dict['meal_indexes'],
                      seating=numpy.array(state_as_dict['seating']),
@@ -176,7 +176,7 @@ class SingleThreadedSearcher(Searcher):
             if new_e < e:
                 state = new_state
                 e = new_e
-                self.log("New best energy: " + str(e))
+                self.log("New best state energy: " + str(e))
         self.log("Done")
         return state, e
 
