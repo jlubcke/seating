@@ -10,8 +10,8 @@ class State(object):
 
     def __init__(self, names=None, meal_names=None, meal_indexes=None, seating=None, geometry=None):
 
-        self.names = names
-        self.meal_names = meal_names
+        self.names = names if names else ["Person #%d" % i for i in range(seating.shape[0])]
+        self.meal_names = meal_names if meal_names else ["Meal #%d" % i for i in range(len(meal_indexes))]
         self.meal_indexes = meal_indexes
         self.seating = seating
         self.geometry = geometry
@@ -183,10 +183,12 @@ class SingleThreadedSearcher(Searcher):
 
 
 def dump(state):
+    result = StringIO()
     for m, (i, j) in enumerate(state.meal_indexes):
-        print "-- %d" % m
+        result.write("-- %d\n" % m)
         for p in range(i, j):
-            print "   ", (numpy.where(state.seating[:, p] == 1)[0])
+            result.write("   %s\n" % (numpy.where(state.seating[:, p] == 1)[0]))
+    result.getvalue()
 
 
 class PrintLogger(object):
@@ -271,7 +273,7 @@ def main():
     else:
         start = start_seating()
     print start.seating
-    dump(start)
+    print dump(start)
     evaluator = TablePositionAgnosticClosnessEvaluator()
     searcher = SingleThreadedSearcher(
         ClosenessStepper(evaluator),
@@ -282,7 +284,7 @@ def main():
 
     print persons_at_each_table(state)
     print state.seating
-    dump(state)
+    print dump(state)
 
     n = evaluator.closeness(state)
     print n.max()

@@ -1,4 +1,4 @@
-from seating_numpy import State
+from seating_numpy import State, dump, export
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
 
 
@@ -29,6 +29,10 @@ class SeatingMaster(object):
         def dispatcher(method, path, data):
             if method == 'GET' and path == '/get_best_state':
                 return self.get_best_state()
+            if method == 'GET' and path =='/dump':
+                return self.dump()
+            if method == 'GET' and path =='/export':
+                return self.export()
             if method == 'POST' and path == '/report_state':
                 return self.report_state(data)
 
@@ -37,6 +41,12 @@ class SeatingMaster(object):
         self._server = SeatingMaster.SeatingServer(dispatcher, server_address, SeatingMaster.RequestHandler)
         self.state_keeper = state_keeper
         self.keep_running = False
+
+    def dump(self):
+        return dump(self.state_keeper.get_current_state())
+
+    def export(self):
+        return export(self.state_keeper.get_current_state())
 
     def get_best_state(self):
         state = self.state_keeper.get_current_state()
