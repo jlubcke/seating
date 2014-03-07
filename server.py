@@ -25,12 +25,14 @@ class SeatingMaster(object):
             self.dispatcher = dispatcher
             HTTPServer.__init__(self, *args, **kwargs)
 
-    def __init__(self, state_keeper, server_address):
+    def __init__(self, state_keeper, server_address, state_evaluator):
         def dispatcher(method, path, data):
             if method == 'GET' and path == '/get_best_state':
                 return self.get_best_state()
             if method == 'POST' and path == '/report_state':
                 return self.report_state(data)
+
+        self.state_evaluator = state_evaluator
 
         self._server = SeatingMaster.SeatingServer(dispatcher, server_address, SeatingMaster.RequestHandler)
         self.state_keeper = state_keeper
@@ -44,11 +46,11 @@ class SeatingMaster(object):
             return 'None'
 
     def report_state(self, data):
-        if self.state_keeper.challenge_state(State.from_json(data)):
-            print 'Accepted new best state'
+        state = State.from_json(data)
+        if self.state_keeper.challenge_state(state):
+            print "Energy of current state:", self.state_evaluator.evaluate(state)
             return 'Accepted'
         else:
-            print 'Discarded received state'
             return 'Discarded'
 
     def run(self):

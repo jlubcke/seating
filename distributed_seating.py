@@ -11,12 +11,13 @@ def main(addr='127.0.0.1', port=5000, slave=False):
         client = SeatingSlave(addr, port)
         client.run()
     else:
+        state_evaluator = SquareStateEvaluator(TablePositionAgnosticClosnessEvaluator())
         server = SeatingMaster(
             StateKeeper(
-                HillClimber(
-                    SquareStateEvaluator(TablePositionAgnosticClosnessEvaluator())),
+                HillClimber(state_evaluator),
                 state=start_seating()),
-            (addr, 5000)
+            (addr, 5000),
+            state_evaluator
         )
         server.run()
 
