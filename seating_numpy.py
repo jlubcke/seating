@@ -53,17 +53,18 @@ class State(object):
 
 def start_seating(persons=150, meals=5, groups=10, positions=15):
 
-    state = State()
+    names = ["Person #%d" % i for i in range(persons)]
+    meal_names = ["Meal #%d" % i for i in range(meals)]
 
-    state.seating = numpy.zeros((persons, meals * positions + groups), dtype=int)
+    seating = numpy.zeros((persons, meals * positions + groups), dtype=int)
 
-    state.meal_indexes = [(i*positions, (i+1)*positions) for i in range(meals)]
+    meal_indexes = [(i*positions, (i+1)*positions) for i in range(meals)]
 
     # Some random groups
-    state.seating[:, meals*positions:(meals*positions + groups)] = numpy.random.random_integers(0, 1, size=(persons, groups))
+    seating[:, meals*positions:(meals*positions + groups)] = numpy.random.random_integers(0, 1, size=(persons, groups))
 
     # Naive initial seating
-    for m, (i, j) in enumerate(state.meal_indexes):
+    for m, (i, j) in enumerate(meal_indexes):
         persons_per_table = persons / (j - i)
         t1 = range(0, persons/2)
         t2 = range(persons/2, persons)
@@ -74,11 +75,11 @@ def start_seating(persons=150, meals=5, groups=10, positions=15):
         else:
             persons_at_meal = t1 + t2
         for k, p in enumerate(persons_at_meal):
-            state.seating[p, i + k / persons_per_table] = 1
+            seating[p, i + k / persons_per_table] = 1
 
-    state.geometry = state.seating.transpose()
+    geometry = seating.transpose()
 
-    return state
+    return State(names=names, meal_names=meal_names, meal_indexes=meal_indexes, seating=seating, geometry=geometry)
 
 
 class Stepper(object):
