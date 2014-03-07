@@ -188,7 +188,7 @@ def dump(state):
         result.write("-- %d\n" % m)
         for p in range(i, j):
             result.write("   %s\n" % (numpy.where(state.seating[:, p] == 1)[0]))
-    result.getvalue()
+    return result.getvalue()
 
 
 class PrintLogger(object):
@@ -232,26 +232,26 @@ def parse(filename):
         meal_indexes.append((cnt, cnt + len(m)))
         cnt += len(m)
 
-    state = State()
-
     names = list({x for m in meals for t in m for x in t})
-    state.names = names
-    state.meal_names = meal_names
-    state.meal_indexes = meal_indexes
+    meal_indexes = meal_indexes
 
-    state.seating = numpy.zeros((len(names), meal_indexes[-1][1]), dtype=int)
+    seating = numpy.zeros((len(names), meal_indexes[-1][1]), dtype=int)
 
     persons_by_name = {name: idx for idx, name in enumerate(names)}
     cnt = 0
     for m in meals:
         for t in m:
             for p in t:
-                state.seating[persons_by_name[p], cnt] = 1
+                seating[persons_by_name[p], cnt] = 1
             cnt += 1
 
-    state.geometry = state.seating.transpose()
+    geometry = seating.transpose()
 
-    return state
+    return State(names=names,
+                 meal_names=meal_names,
+                 meal_indexes=meal_indexes,
+                 seating=seating,
+                 geometry=geometry)
 
 
 def export(state):
