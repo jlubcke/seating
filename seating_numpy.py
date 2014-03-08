@@ -8,12 +8,13 @@ import simplejson
 
 class State(object):
 
-    def __init__(self, names=None, meal_names=None, meal_indexes=None, seating=None, geometry=None):
+    def __init__(self, names=None, meal_names=None, meal_indexes=None, seating=None, fixed=None, geometry=None):
 
-        self.names = names if names else ["Person #%d" % i for i in range(seating.shape[0])]
-        self.meal_names = meal_names if meal_names else ["Meal #%d" % i for i in range(len(meal_indexes))]
+        self.names = names if names is not None else ["Person #%d" % i for i in range(seating.shape[0])]
+        self.meal_names = meal_names if meal_names is not None else ["Meal #%d" % i for i in range(len(meal_indexes))]
         self.meal_indexes = meal_indexes
         self.seating = seating
+        self.fixed = fixed if fixed is not None else numpy.zeros(seating.shape, dtype=bool)
         self.geometry = geometry
         self.closeness = None
 
@@ -41,12 +42,22 @@ class State(object):
                      meal_names=self.meal_names,
                      meal_indexes=self.meal_indexes,
                      seating=self.seating.copy(),
+                     fixed=self.fixed,
                      geometry=self.geometry.copy())
 
     def swap(self, i, j, p1, p2):
-        if not self.seating[p1, i:j].any() or not self.seating[p2, i:j].any():
-            return
-        self.seating[p1, i:j], self.seating[p2, i:j] = self.seating[p2, i:j].copy(), self.seating[p1, i:j].copy()
+        p1_seating = self.seating[p1, i:j]
+        p2_seating = self.seating[p2, i:j]
+
+        p1_not_here = not numpy.any(p1_seating)
+        if p1_not_here: return
+        p2_not_here = not numpy.any(p2_seating)
+        if p2_not_here: return
+        p1_locked = numpy.any(p1_seating * self.fixed[p1, i:j])
+        if p1_locked: return
+        p2_locked = numpy.any(p2_seating * self.fixed[p2, i:j])
+        if p2_locked: return
+        self.seating[p1, i:j], self.seating[p2, i:j] = p2_seating.copy(), p1_seating.copy()
         self.geometry[i:j, p1], self.geometry[i:j, p2] = self.geometry[i:j, p2].copy(), self.geometry[i:j, p1].copy()
         self.closeness = None
 
@@ -211,15 +222,19 @@ def parse(filename):
         for line in f:
             if line.startswith('*'):
                 meal_names.append(line[1:].strip())
+                if table:
+                    meal.append(table)
+                    table = []
                 if meal:
                     meals.append(meal)
-                meal = []
+                    meal = []
             elif line.strip() == '':
                 if table:
                     meal.append(table)
-                table = []
+                    table = []
             else:
-                table.append(line.strip())
+                table.append((line.strip(), True if line.startswith(' ') else False))
+
         if table:
             meal.append(table)
         if meal:
@@ -228,21 +243,29 @@ def parse(filename):
 
     cnt = 0
     meal_indexes = []
-    for m in meals:
-        meal_indexes.append((cnt, cnt + len(m)))
-        cnt += len(m)
+    for meal in meals:
+        meal_indexes.append((cnt, cnt + len(meal)))
+        cnt += len(meal)
 
-    names = list({x for m in meals for t in m for x in t})
+    names = list({name
+                  for meal in meals
+                  for table in meal
+                  for (name, _) in table})
+    names.sort()
+
     meal_indexes = meal_indexes
 
     seating = numpy.zeros((len(names), meal_indexes[-1][1]), dtype=int)
+    fixed = numpy.zeros((len(names), meal_indexes[-1][1]), dtype=bool)
 
     persons_by_name = {name: idx for idx, name in enumerate(names)}
     cnt = 0
-    for m in meals:
-        for t in m:
-            for p in t:
-                seating[persons_by_name[p], cnt] = 1
+    for meal in meals:
+        for table in meal:
+            for name, is_fixed in table:
+                row = persons_by_name[name]
+                seating[row, cnt] = 1
+                fixed[row, cnt] = is_fixed
             cnt += 1
 
     geometry = seating.transpose()
@@ -251,6 +274,7 @@ def parse(filename):
                  meal_names=meal_names,
                  meal_indexes=meal_indexes,
                  seating=seating,
+                 fixed=fixed,
                  geometry=geometry)
 
 
@@ -261,7 +285,9 @@ def export(state):
         result.write('* ' + state.meal_names[m] + "\n\n")
         for t in range(i, j):
             for p in numpy.where(state.seating[:, t] == 1)[0]:
-                result.write('  ' + state.names[p] + '\n')
+                if state.fixed[p, t]:
+                    result.write('  ')
+                result.write(state.names[p] + '\n')
             result.write('\n')
         result.write('\n')
     return result.getvalue()
@@ -273,6 +299,7 @@ def main():
     else:
         start = start_seating()
     print start.seating
+    print start.fixed
     print dump(start)
     evaluator = TablePositionAgnosticClosnessEvaluator()
     searcher = SingleThreadedSearcher(

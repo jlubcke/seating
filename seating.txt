@@ -1,8 +1,8 @@
-*Måndag
+* Måndag
 
 Johan
-Ammis
-Tove
+ Ammis
+ Tove
 
 Vilma
 Valter
@@ -24,3 +24,16 @@ Tove
 Vilma
 Valter
 
+* Killar
+
+Johan
+Valter
+
+* Barn
+
+Tove
+Vilma
+Valter
+
+* Jultomtar
+ Jultomten
