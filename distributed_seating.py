@@ -1,9 +1,10 @@
+import argparse
+
 from statekeeper import StateKeeper
 from evaluators import HillClimber
 from server import SeatingMaster
 from client import SeatingSlave
-from seating_numpy import SquareStateEvaluator, start_seating, TablePositionAgnosticClosnessEvaluator
-import argparse
+from seating import SquareStateEvaluator, start_seating, TablePositionAgnosticClosnessEvaluator
 
 
 def main(addr='127.0.0.1', port=5000, slave=False):

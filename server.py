@@ -1,4 +1,4 @@
-from seating_numpy import State, dump, export
+from seating import State, dump, export
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
 
 

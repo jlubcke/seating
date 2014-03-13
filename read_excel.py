@@ -1,5 +1,5 @@
 import numpy
-from seating_numpy import dump, State, export
+from seating import dump, State, export
 from xlrd import open_workbook
 from xlutils.margins import number_of_good_rows, number_of_good_cols
 from bunch import Bunch

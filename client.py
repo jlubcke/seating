@@ -1,6 +1,5 @@
 import requests
-from seating_numpy import State, TablePositionAgnosticClosnessEvaluator, SingleThreadedSearcher, ClosenessStepper, \
-    SquareStateEvaluator, PrintLogger
+from seating import State, TablePositionAgnosticClosnessEvaluator, SingleThreadedSearcher, ClosenessStepper, SquareStateEvaluator, PrintLogger
 
 
 class SeatingSlave(object):
