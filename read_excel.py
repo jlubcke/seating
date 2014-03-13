@@ -1,8 +1,11 @@
+import sys
+
 import numpy
-from seating import dump, State, export
+from seating import State, export, optimize
 from xlrd import open_workbook
 from xlutils.margins import number_of_good_rows, number_of_good_cols
 from bunch import Bunch
+
 
 def read_groups(seating, sheet):
 
@@ -90,23 +93,24 @@ def to_state(seating):
                  geometry=matrix.transpose())
 
 
-def main():
+def read_excel(filename):
 
-    seating = Bunch(tables=[],
-                    groups=[])
-
-    wd = open_workbook("seating.xlsx")
-
-    for sheet in wd.sheets():
+    seating = Bunch()
+    for sheet in (open_workbook(filename)).sheets():
         if sheet.cell(0, 0).value:
             read_tables(seating, sheet)
         else:
             read_groups(seating, sheet)
 
-    state = to_state(seating)
+    return to_state(seating)
 
-    print dump(state)
+
+def main():
+    filename = sys.argv[1] if len(sys.argv) == 2 else "seating.xlsx"
+    state = read_excel(filename)
+    state = optimize(state)
     print export(state)
+
 
 if __name__ == '__main__':
     main()

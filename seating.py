@@ -60,6 +60,7 @@ class State(object):
         self.seating[p1, i:j], self.seating[p2, i:j] = p2_seating.copy(), p1_seating.copy()
         self.geometry[i:j, p1], self.geometry[i:j, p2] = self.geometry[i:j, p2].copy(), self.geometry[i:j, p1].copy()
         self.closeness = None
+        return True
 
 
 def start_seating(persons=150, meals=5, groups=10, positions=15):
@@ -298,6 +299,17 @@ def export(state):
             result.write('\n')
         result.write('\n')
     return result.getvalue()
+
+
+def optimize(start):
+    evaluator = TablePositionAgnosticClosnessEvaluator()
+    searcher = SingleThreadedSearcher(
+        ClosenessStepper(evaluator),
+        SquareStateEvaluator(evaluator),
+        PrintLogger()
+    )
+    state, _ = searcher.search(start)
+    return state
 
 
 def main():
