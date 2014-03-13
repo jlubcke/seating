@@ -5,18 +5,16 @@ for x in {0..7}; do (python distributed_seating.py --addr 127.0.0.1 --port 5000 
 virtualenv env
 . env/bin/activate
 
-# Constraint stuff:
-
-easy_install ortools-1.3149-py2.7-macosx-10.9-intel.egg
-pip install protobuf
-pip install python-gflags
-
-
 # numpy stuff
+
+pip install numpy
+pip install bunch
+pip install requests
+
+# Extra
 
 brew import pyqt
 pip install ipython
-pip install numpy
 brew install pkg-config
 brew install freetype
 ln -s /usr/local/opt/freetype/include/freetype2 /usr/local/include/freetype
@@ -24,4 +22,3 @@ pip install matplotlib
 pip install pyzmq
 pip install jinja2
 pip install tornado
-pip install requests

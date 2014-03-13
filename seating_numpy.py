@@ -66,16 +66,18 @@ def start_seating(persons=150, meals=5, groups=10, positions=15):
 
     names = ["Person #%d" % i for i in range(persons)]
     meal_names = ["Meal #%d" % i for i in range(meals)]
+    meal_names.extend(["Group #%d" % i for i in range(groups)])
 
     seating = numpy.zeros((persons, meals * positions + groups), dtype=int)
 
     meal_indexes = [(i*positions, (i+1)*positions) for i in range(meals)]
+    meal_indexes += [(i, i+1) for i in range(meals*positions, meals*positions + groups)]
 
     # Some random groups
     seating[:, meals*positions:(meals*positions + groups)] = numpy.random.random_integers(0, 1, size=(persons, groups))
 
     # Naive initial seating
-    for m, (i, j) in enumerate(meal_indexes):
+    for m, (i, j) in enumerate(meal_indexes[:meals]):
         persons_per_table = persons / (j - i)
         t1 = range(0, persons/2)
         t2 = range(persons/2, persons)
@@ -90,7 +92,11 @@ def start_seating(persons=150, meals=5, groups=10, positions=15):
 
     geometry = seating.transpose()
 
-    return State(names=names, meal_names=meal_names, meal_indexes=meal_indexes, seating=seating, geometry=geometry)
+    return State(names=names,
+                 meal_names=meal_names,
+                 meal_indexes=meal_indexes,
+                 seating=seating,
+                 geometry=geometry)
 
 
 class Stepper(object):
@@ -169,6 +175,7 @@ class Searcher(object):
 
 
 class SingleThreadedSearcher(Searcher):
+
     def __init__(self, stepper, state_evaluator, logger):
         self.stepper = stepper
         self.state_evaluator = state_evaluator
