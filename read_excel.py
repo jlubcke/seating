@@ -72,19 +72,19 @@ def to_state(seating):
 
     person_index_by_name = {name: i for i, name in enumerate(names)}
 
-    cnt = 0
+    col = 0
     for _, tables in seating.meals:
         for table in tables:
             for name in table:
-                index = person_index_by_name[name]
-                matrix[index, cnt] = 1
-            cnt += 1
+                row = person_index_by_name[name]
+                matrix[row, col] = 1
+            col += 1
 
     for _, group in seating.groups:
         for name in group:
-            index = person_index_by_name[name]
-            matrix[index, cnt] = 1
-        cnt += 1
+            row = person_index_by_name[name]
+            matrix[row, col] = 1
+        col += 1
 
     return State(names=names,
                  meal_names=meal_names,

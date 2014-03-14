@@ -62,6 +62,13 @@ class State(object):
         self.closeness = None
         return True
 
+    def shuffle(self):
+        for i, j in self.meal_indexes:
+            if i + 1 == j:
+                continue
+            for p in range(self.persons):
+                self.swap(i, j, p, numpy.random.choice(self.persons))
+
 
 def start_seating(persons=150, meals=5, groups=10, positions=15):
 
@@ -108,11 +115,14 @@ class Stepper(object):
 class BlindStepper(Stepper):
     def step(self, state):
         result = state.copy()
-        i, j = random.choice(state.meal_indexes)
-        result.swap(i, j,
-                    numpy.random.choice(state.persons),
-                    numpy.random.choice(state.persons))
-        return result
+        while True:
+            i, j = random.choice(state.meal_indexes)
+            if i + 1 == j:
+                continue
+            if result.swap(i, j,
+                           numpy.random.choice(state.persons),
+                           numpy.random.choice(state.persons)):
+                return result
 
 
 class ClosenessStepper(Stepper):
@@ -122,11 +132,14 @@ class ClosenessStepper(Stepper):
     def step(self, state):
         result = state.copy()
         c = self._candidates(state)
-        i, j = random.choice(state.meal_indexes)
-        result.swap(i, j,
-                    numpy.random.choice(c),
-                    numpy.random.choice(state.persons))
-        return result
+        while True:
+            i, j = random.choice(state.meal_indexes)
+            if i + 1 == j:
+                continue
+            if result.swap(i, j,
+                           numpy.random.choice(c),
+                           numpy.random.choice(state.persons)):
+                return result
 
     def _candidates(self, state):
         n = self.closeness_evaluator.closeness(state)
@@ -302,6 +315,7 @@ def export(state):
 
 
 def optimize(start):
+    start.shuffle()
     evaluator = TablePositionAgnosticClosnessEvaluator()
     searcher = SingleThreadedSearcher(
         ClosenessStepper(evaluator),
