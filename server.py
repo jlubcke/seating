@@ -10,7 +10,7 @@ class SeatingMaster(object):
             self.send_response(200)
             self.send_header("content-type", "application/json")
             self.end_headers()
-            self.wfile.write(response)
+            self.wfile.write(response.encode('utf8') if response is not None else '')
 
         def do_POST(self):
             data = self.rfile.read(int(self.headers.getheader('Content-Length')))
@@ -18,7 +18,7 @@ class SeatingMaster(object):
             self.send_response(200)
             self.send_header("content-type", "text/plain")
             self.end_headers()
-            self.wfile.write(response)
+            self.wfile.write(response.encode('utf8') if response is not None else '')
 
     class SeatingServer(HTTPServer):
         def __init__(self, dispatcher, *args, **kwargs):

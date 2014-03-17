@@ -26,14 +26,18 @@ class State(object):
     @staticmethod
     def from_json(json):
         state_as_dict = simplejson.loads(json)
-        return State(meal_indexes=state_as_dict['meal_indexes'],
+        return State(meal_names=state_as_dict['meal_names'],
+                     meal_indexes=state_as_dict['meal_indexes'],
                      seating=numpy.array(state_as_dict['seating']),
+                     fixed=numpy.array(state_as_dict['fixed']),
                      geometry=numpy.array(state_as_dict['geometry']))
 
     def to_json(self):
         return simplejson.dumps({
+            "meal_names": self.meal_names,
             "meal_indexes": self.meal_indexes,
             "seating": self.seating.tolist(),
+            "fixed": self.fixed.tolist(),
             "geometry": self.geometry.tolist()
         })
 
@@ -105,7 +109,7 @@ def start_seating(persons=150, meals=5, groups=10, positions=15):
         for k, p in enumerate(persons_at_meal):
             seating[p, i + k / persons_per_table] = 1
 
-    geometry = seating.transpose()
+    geometry = seating.copy().transpose()
 
     return State(names=names,
                  meal_names=meal_names,
@@ -296,7 +300,7 @@ def parse(filename):
                 fixed[row, cnt] = is_fixed
             cnt += 1
 
-    geometry = seating.transpose()
+    geometry = seating.copy().transpose()
 
     return State(names=names,
                  meal_names=meal_names,
@@ -322,9 +326,7 @@ def export(state):
 
 
 def optimize(start):
-    print dump(start)
     start.shuffle()
-    print dump(start)
     evaluator = TablePositionAgnosticClosnessEvaluator()
     searcher = SingleThreadedSearcher(
         ClosenessStepper(evaluator),

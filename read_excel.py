@@ -90,7 +90,7 @@ def to_state(seating):
                  meal_names=meal_names,
                  meal_indexes=meal_indexes,
                  seating=matrix,
-                 geometry=matrix.transpose())
+                 geometry=matrix.copy().transpose())
 
 
 def read_excel(filename):
