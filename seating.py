@@ -50,13 +50,17 @@ class State(object):
         p2_seating = self.seating[p2, i:j]
 
         p1_not_here = not numpy.any(p1_seating)
-        if p1_not_here: return
+        if p1_not_here:
+            return False
         p2_not_here = not numpy.any(p2_seating)
-        if p2_not_here: return
+        if p2_not_here:
+            return False
         p1_locked = numpy.any(p1_seating * self.fixed[p1, i:j])
-        if p1_locked: return
+        if p1_locked:
+            return False
         p2_locked = numpy.any(p2_seating * self.fixed[p2, i:j])
-        if p2_locked: return
+        if p2_locked:
+            return False
         self.seating[p1, i:j], self.seating[p2, i:j] = p2_seating.copy(), p1_seating.copy()
         self.geometry[i:j, p1], self.geometry[i:j, p2] = self.geometry[i:j, p2].copy(), self.geometry[i:j, p1].copy()
         self.closeness = None
@@ -66,8 +70,11 @@ class State(object):
         for i, j in self.meal_indexes:
             if i + 1 == j:
                 continue
-            for p in range(self.persons):
-                self.swap(i, j, p, numpy.random.choice(self.persons))
+            for p1 in range(self.persons):
+                p2 = numpy.random.choice(self.persons)
+                if self.swap(i, j, p1, p2):
+                    self.seating = self.seating.copy()
+                    self.geometry = self.geometry.copy()
 
 
 def start_seating(persons=150, meals=5, groups=10, positions=15):
@@ -217,7 +224,7 @@ class SingleThreadedSearcher(Searcher):
 def dump(state):
     result = StringIO()
     for m, (i, j) in enumerate(state.meal_indexes):
-        result.write("-- %d\n" % m)
+        result.write("-- %s\n" % state.meal_names[m])
         for p in range(i, j):
             result.write("   %s\n" % (numpy.where(state.seating[:, p] == 1)[0]))
     return result.getvalue()
@@ -315,7 +322,9 @@ def export(state):
 
 
 def optimize(start):
+    print dump(start)
     start.shuffle()
+    print dump(start)
     evaluator = TablePositionAgnosticClosnessEvaluator()
     searcher = SingleThreadedSearcher(
         ClosenessStepper(evaluator),
@@ -332,8 +341,10 @@ def main():
     else:
         start = start_seating()
     print start.seating
-    print start.fixed
     print dump(start)
+    start.shuffle()
+    print dump(start)
+
     evaluator = TablePositionAgnosticClosnessEvaluator()
     searcher = SingleThreadedSearcher(
         ClosenessStepper(evaluator),
