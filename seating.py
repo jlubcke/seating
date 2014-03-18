@@ -1,6 +1,7 @@
 from StringIO import StringIO
 import random
 import sys
+from io import BytesIO
 
 import numpy
 import simplejson
@@ -231,6 +232,32 @@ def dump(state):
         result.write("-- %s\n" % state.meal_names[m])
         for p in range(i, j):
             result.write("   %s\n" % (numpy.where(state.seating[:, p] == 1)[0]))
+    return result.getvalue()
+
+
+def report(state):
+
+    result = StringIO()
+
+    attendance = numpy.dot(state.seating.transpose(), state.seating)
+
+    for meal_name, (i, j) in zip(state.meal_names, state.meal_indexes):
+        if i + 1 == j:
+            continue
+        result.write("%s\n" % meal_name)
+
+        cnt = 0
+        for table in range(i, j):
+            result.write("  %s\n" % cnt)
+
+            for group_name, (k, l) in zip(state.meal_names, state.meal_indexes):
+                if k + 1 != l:
+                    continue
+                n = attendance[i+cnt][k]
+                if n > 0:
+                    result.write("    %s: %d\n" % (group_name, n))
+            cnt += 1
+
     return result.getvalue()
 
 

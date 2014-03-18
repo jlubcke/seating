@@ -1,5 +1,5 @@
 import argparse
-from read_excel import read_excel
+from excel_format import read_excel
 
 from statekeeper import StateKeeper
 from evaluators import HillClimber
@@ -14,7 +14,7 @@ def main(start=None, addr=None, port=None, slave=None):
         client.run()
     else:
 
-        if start.endswith('.xlsx'):
+        if start.endswith('.xls') or start.endswith('.xlsx'):
             state = read_excel(start)
         elif start.endswith('.txt'):
             state = parse(start)

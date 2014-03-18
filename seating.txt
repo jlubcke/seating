@@ -1,6 +1,6 @@
 * Måndag
 
-Johan
+Johan Lübcke
  Ammis
  Tove
 
@@ -10,7 +10,7 @@ Valter
 
 * Tisdag
 
-Johan
+Johan Lübcke
 Ammis
 Tove
 
@@ -24,10 +24,13 @@ Tove
 Vilma
 Valter
 
+  Jultomten
+
 * Killar
 
-Johan
+Johan Lübcke
 Valter
+
 
 * Barn
 
@@ -36,4 +39,5 @@ Vilma
 Valter
 
 * Jultomtar
+
  Jultomten

@@ -1,4 +1,5 @@
-from seating import State, dump, export
+from excel_format import write_excel
+from seating import State, dump, export, report
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
 
 
@@ -33,6 +34,8 @@ class SeatingMaster(object):
                 return self.dump()
             if method == 'GET' and path =='/export':
                 return self.export()
+            if method == 'GET' and path == '/excel':
+                return self.excel()
             if method == 'POST' and path == '/report_state':
                 return self.report_state(data)
 
@@ -43,10 +46,14 @@ class SeatingMaster(object):
         self.keep_running = False
 
     def dump(self):
-        return dump(self.state_keeper.get_current_state())
+        state = self.state_keeper.get_current_state()
+        return dump(state) + u"\n%s\n" % (u"#"*80,) + report(state)
 
     def export(self):
         return export(self.state_keeper.get_current_state())
+
+    def excel(self):
+        return write_excel(self.state_keeper.get_current_state())
 
     def get_best_state(self):
         state = self.state_keeper.get_current_state()
