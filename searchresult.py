@@ -2,6 +2,7 @@ import simplejson
 
 
 class SearchResult(object):
+
     def __init__(self):
         self.state = None
         self.energy = None

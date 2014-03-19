@@ -250,12 +250,12 @@ def report(state):
         for table in range(i, j):
             result.write("  %s\n" % cnt)
 
-            for group_name, (k, l) in zip(state.group_names, state.group_indexes):
+            for inner_group_name, (k, l) in zip(state.group_names, state.group_indexes):
                 if k + 1 != l:
                     continue
                 n = attendance[i+cnt][k]
                 if n > 0:
-                    result.write("    %s: %d\n" % (group_name, n))
+                    result.write("    %s: %d\n" % (inner_group_name, n))
             cnt += 1
 
     return result.getvalue()
