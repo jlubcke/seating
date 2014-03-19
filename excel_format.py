@@ -2,7 +2,7 @@ import sys
 from io import BytesIO
 
 import numpy
-from seating import State, export, optimize, parse
+from seating import State, export, optimize, parse, dump
 from xlrd import open_workbook
 from xlutils.margins import number_of_good_rows, number_of_good_cols
 from bunch import Bunch
@@ -33,9 +33,6 @@ def read_groups(seating, sheet):
 
 def read_tables(seating, workbook, sheet):
 
-    def is_bold(cell):
-        return False
-
     meals = []
     for col in range(number_of_good_cols(sheet)):
         meal_name = sheet.cell(0, col).value
@@ -45,7 +42,10 @@ def read_tables(seating, workbook, sheet):
         for cell in sheet.col(col)[1:]:
             value = cell.value
             if value:
-                table.append([value, is_bold(cell)])
+                fixed = value.startswith('*')
+                if fixed:
+                    value = value[1:]
+                table.append([value, fixed])
             else:
                 if table:
                     tables.append(table)
@@ -59,18 +59,18 @@ def read_tables(seating, workbook, sheet):
 
 
 def to_state(seating):
-    meal_names = []
-    meal_indexes = []
+    group_names = []
+    group_indexes = []
     cnt = 0
 
     for meal_name, tables in seating.meals:
-        meal_names.append(meal_name)
-        meal_indexes.append((cnt, cnt+len(tables)))
+        group_names.append(meal_name)
+        group_indexes.append((cnt, cnt+len(tables)))
         cnt += len(tables)
 
     for group_name, group in seating.groups:
-        meal_names.append(group_name)
-        meal_indexes.append((cnt, cnt+1))
+        group_names.append(group_name)
+        group_indexes.append((cnt, cnt+1))
         cnt += 1
 
     names = seating.names
@@ -95,8 +95,8 @@ def to_state(seating):
         col += 1
 
     return State(names=names,
-                 meal_names=meal_names,
-                 meal_indexes=meal_indexes,
+                 group_names=group_names,
+                 group_indexes=group_indexes,
                  seating=matrix,
                  fixed=fixed,
                  geometry=matrix.copy().transpose())
@@ -105,7 +105,7 @@ def to_state(seating):
 def read_excel(filename):
 
     seating = Bunch()
-    workbook = open_workbook(filename, formatting_info=False)
+    workbook = open_workbook(filename)
     for sheet in (workbook).sheets():
         if sheet.cell(0, 0).value:
             read_tables(seating, workbook, sheet)
@@ -130,7 +130,7 @@ def write_excel(state):
     for p, name in enumerate(state.names):
         groups.write(p + 1, 0, name)
 
-    for meal_name, (i, j) in zip(state.meal_names, state.meal_indexes):
+    for meal_name, (i, j) in zip(state.group_names, state.group_indexes):
         if i + 1 == j:
             groups.write(0, group_col_count, meal_name, style=BOLD)
             for p in range(state.persons):
@@ -145,7 +145,10 @@ def write_excel(state):
             for table in range(j-i):
                 for p in numpy.where(state.seating[:, i+table] == 1)[0]:
                     fixed = state.fixed[p, i+table]
-                    meals.write(meal_row_count, meal_col_count, state.names[p], style=BOLD if fixed else NORMAL)
+                    label = state.names[p]
+                    if fixed:
+                        label = "*" + label
+                    meals.write(meal_row_count, meal_col_count, label, style=BOLD if fixed else NORMAL)
                     meal_row_count += 1
                 meal_row_count += 1
 
@@ -158,7 +161,7 @@ def write_excel(state):
 
 def main():
     filename = sys.argv[1] if len(sys.argv) == 2 else "seating.txt"
-    if filename.endswith('.xls'):
+    if filename.endswith('.xls') or filename.endswith('.xlsx'):
         state = read_excel(filename)
     if filename.endswith('.txt'):
         state = parse(filename)

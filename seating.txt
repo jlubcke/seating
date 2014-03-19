@@ -1,14 +1,14 @@
-* Måndag
+# Måndag
 
 Johan Lübcke
- Ammis
- Tove
+*Ammis
+*Tove
 
 Vilma
 Valter
 
 
-* Tisdag
+# Tisdag
 
 Johan Lübcke
 Ammis
@@ -18,26 +18,28 @@ Vilma
 Valter
 
 
-* Onsdag
+# Onsdag
 
 Tove
 Vilma
 Valter
 
-  Jultomten
+*Jultomten
 
-* Killar
+
+# Killar
 
 Johan Lübcke
 Valter
 
 
-* Barn
+# Barn
 
 Tove
 Vilma
 Valter
 
-* Jultomtar
 
- Jultomten
+# Jultomtar
+
+*Jultomten

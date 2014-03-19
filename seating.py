@@ -9,11 +9,11 @@ import simplejson
 
 class State(object):
 
-    def __init__(self, names=None, meal_names=None, meal_indexes=None, seating=None, fixed=None, geometry=None):
+    def __init__(self, names=None, group_names=None, group_indexes=None, seating=None, fixed=None, geometry=None):
 
         self.names = names if names is not None else ["Person #%d" % i for i in range(seating.shape[0])]
-        self.meal_names = meal_names if meal_names is not None else ["Meal #%d" % i for i in range(len(meal_indexes))]
-        self.meal_indexes = meal_indexes
+        self.group_names = group_names if group_names is not None else ["Meal #%d" % i for i in range(len(group_indexes))]
+        self.group_indexes = group_indexes
         self.seating = seating
         self.fixed = fixed if fixed is not None else numpy.zeros(seating.shape, dtype=bool)
         self.geometry = geometry
@@ -27,16 +27,16 @@ class State(object):
     @staticmethod
     def from_json(json):
         state_as_dict = simplejson.loads(json)
-        return State(meal_names=state_as_dict['meal_names'],
-                     meal_indexes=state_as_dict['meal_indexes'],
+        return State(group_names=state_as_dict['group_names'],
+                     group_indexes=state_as_dict['group_indexes'],
                      seating=numpy.array(state_as_dict['seating']),
                      fixed=numpy.array(state_as_dict['fixed']),
                      geometry=numpy.array(state_as_dict['geometry']))
 
     def to_json(self):
         return simplejson.dumps({
-            "meal_names": self.meal_names,
-            "meal_indexes": self.meal_indexes,
+            "group_names": self.group_names,
+            "gropu_indexes": self.group_indexes,
             "seating": self.seating.tolist(),
             "fixed": self.fixed.tolist(),
             "geometry": self.geometry.tolist()
@@ -44,8 +44,8 @@ class State(object):
 
     def copy(self):
         return State(names=self.names,
-                     meal_names=self.meal_names,
-                     meal_indexes=self.meal_indexes,
+                     group_names=self.group_names,
+                     group_indexes=self.group_indexes,
                      seating=self.seating.copy(),
                      fixed=self.fixed,
                      geometry=self.geometry.copy())
@@ -72,7 +72,7 @@ class State(object):
         return True
 
     def shuffle(self):
-        for i, j in self.meal_indexes:
+        for i, j in self.group_indexes:
             if i + 1 == j:
                 continue
             for p1 in range(self.persons):
@@ -85,19 +85,19 @@ class State(object):
 def start_seating(persons=150, meals=5, groups=10, positions=15):
 
     names = ["Person #%d" % i for i in range(persons)]
-    meal_names = ["Meal #%d" % i for i in range(meals)]
-    meal_names.extend(["Group #%d" % i for i in range(groups)])
+    group_names = ["Meal #%d" % i for i in range(meals)]
+    group_names.extend(["Group #%d" % i for i in range(groups)])
 
     seating = numpy.zeros((persons, meals * positions + groups), dtype=int)
 
-    meal_indexes = [(i*positions, (i+1)*positions) for i in range(meals)]
-    meal_indexes += [(i, i+1) for i in range(meals*positions, meals*positions + groups)]
+    group_indexes = [(i*positions, (i+1)*positions) for i in range(meals)]
+    group_indexes += [(i, i+1) for i in range(meals*positions, meals*positions + groups)]
 
     # Some random groups
     seating[:, meals*positions:(meals*positions + groups)] = numpy.random.random_integers(0, 1, size=(persons, groups))
 
     # Naive initial seating
-    for m, (i, j) in enumerate(meal_indexes[:meals]):
+    for m, (i, j) in enumerate(group_indexes[:meals]):
         persons_per_table = persons / (j - i)
         t1 = range(0, persons/2)
         t2 = range(persons/2, persons)
@@ -113,8 +113,8 @@ def start_seating(persons=150, meals=5, groups=10, positions=15):
     geometry = seating.copy().transpose()
 
     return State(names=names,
-                 meal_names=meal_names,
-                 meal_indexes=meal_indexes,
+                 group_names=group_names,
+                 group_indexes=group_indexes,
                  seating=seating,
                  geometry=geometry)
 
@@ -128,7 +128,7 @@ class BlindStepper(Stepper):
     def step(self, state):
         result = state.copy()
         while True:
-            i, j = random.choice(state.meal_indexes)
+            i, j = random.choice(state.group_indexes)
             if i + 1 == j:
                 continue
             if result.swap(i, j,
@@ -145,7 +145,7 @@ class ClosenessStepper(Stepper):
         result = state.copy()
         c = self._candidates(state)
         while True:
-            i, j = random.choice(state.meal_indexes)
+            i, j = random.choice(state.group_indexes)
             if i + 1 == j:
                 continue
             if result.swap(i, j,
@@ -228,8 +228,8 @@ class SingleThreadedSearcher(Searcher):
 
 def dump(state):
     result = StringIO()
-    for m, (i, j) in enumerate(state.meal_indexes):
-        result.write("-- %s\n" % state.meal_names[m])
+    for m, (i, j) in enumerate(state.group_indexes):
+        result.write("-- %s\n" % state.group_names[m])
         for p in range(i, j):
             result.write("   %s\n" % (numpy.where(state.seating[:, p] == 1)[0]))
     return result.getvalue()
@@ -241,16 +241,16 @@ def report(state):
 
     attendance = numpy.dot(state.seating.transpose(), state.seating)
 
-    for meal_name, (i, j) in zip(state.meal_names, state.meal_indexes):
+    for group_name, (i, j) in zip(state.group_names, state.group_indexes):
         if i + 1 == j:
             continue
-        result.write("%s\n" % meal_name)
+        result.write("%s\n" % group_name)
 
         cnt = 0
         for table in range(i, j):
             result.write("  %s\n" % cnt)
 
-            for group_name, (k, l) in zip(state.meal_names, state.meal_indexes):
+            for group_name, (k, l) in zip(state.group_names, state.group_indexes):
                 if k + 1 != l:
                     continue
                 n = attendance[i+cnt][k]
@@ -271,57 +271,59 @@ class PrintLogger(object):
 
 def parse(filename):
 
-    meal_names = []
-    meals = []
+    group_names = []
+    groups = []
 
-    meal = []
-    table = []
+    group = []
+    position = []
 
     with open(filename, "rb") as f:
         for line in f:
-            if line.startswith('*'):
-                meal_names.append(line[1:].strip())
-                if table:
-                    meal.append(table)
-                    table = []
-                if meal:
-                    meals.append(meal)
-                    meal = []
+            if line.startswith('#'):
+                group_names.append(line[1:].strip())
+                if position:
+                    group.append(position)
+                    position = []
+                if group:
+                    groups.append(group)
+                    group = []
             elif line.strip() == '':
-                if table:
-                    meal.append(table)
-                    table = []
+                if position:
+                    group.append(position)
+                    position = []
             else:
-                table.append((line.strip(), True if line.startswith(' ') else False))
+                fixed = line.startswith('*')
+                if fixed:
+                    line = line[1:]
+                position.append([line.strip(), fixed])
 
-        if table:
-            meal.append(table)
-        if meal:
-            meals.append(meal)
-
+        if position:
+            group.append(position)
+        if group:
+            groups.append(group)
 
     cnt = 0
-    meal_indexes = []
-    for meal in meals:
-        meal_indexes.append((cnt, cnt + len(meal)))
-        cnt += len(meal)
+    group_indexes = []
+    for group in groups:
+        group_indexes.append((cnt, cnt + len(group)))
+        cnt += len(group)
 
     names = list({name
-                  for meal in meals
-                  for table in meal
-                  for (name, _) in table})
+                  for group in groups
+                  for position in group
+                  for (name, _) in position})
     names.sort()
 
-    meal_indexes = meal_indexes
+    group_indexes = group_indexes
 
-    seating = numpy.zeros((len(names), meal_indexes[-1][1]), dtype=int)
-    fixed = numpy.zeros((len(names), meal_indexes[-1][1]), dtype=bool)
+    seating = numpy.zeros((len(names), group_indexes[-1][1]), dtype=int)
+    fixed = numpy.zeros((len(names), group_indexes[-1][1]), dtype=bool)
 
     persons_by_name = {name: idx for idx, name in enumerate(names)}
     cnt = 0
-    for meal in meals:
-        for table in meal:
-            for name, is_fixed in table:
+    for group in groups:
+        for position in group:
+            for name, is_fixed in position:
                 row = persons_by_name[name]
                 seating[row, cnt] = 1
                 fixed[row, cnt] = is_fixed
@@ -330,8 +332,8 @@ def parse(filename):
     geometry = seating.copy().transpose()
 
     return State(names=names,
-                 meal_names=meal_names,
-                 meal_indexes=meal_indexes,
+                 group_names=group_names,
+                 group_indexes=group_indexes,
                  seating=seating,
                  fixed=fixed,
                  geometry=geometry)
@@ -340,12 +342,12 @@ def parse(filename):
 def export(state):
     result = StringIO()
 
-    for m, (i, j) in enumerate(state.meal_indexes):
-        result.write('* ' + state.meal_names[m] + "\n\n")
+    for group_name, (i, j) in zip(state.group_names, state.group_indexes):
+        result.write('# ' + group_name + "\n\n")
         for t in range(i, j):
             for p in numpy.where(state.seating[:, t] == 1)[0]:
                 if state.fixed[p, t]:
-                    result.write('  ')
+                    result.write('*')
                 result.write(state.names[p] + '\n')
             result.write('\n')
         result.write('\n')
