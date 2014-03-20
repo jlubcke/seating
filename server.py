@@ -1,6 +1,7 @@
 from excel_format import write_excel
-from seating import State, dump, export, report
+from seating import State, dump, report
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
+from text_format import write_text
 
 
 class SeatingMaster(object):
@@ -50,7 +51,7 @@ class SeatingMaster(object):
         return dump(state) + u"\n%s\n" % (u"#"*80,) + report(state)
 
     def export(self):
-        return export(self.state_keeper.get_current_state())
+        return write_text(self.state_keeper.get_current_state())
 
     def excel(self):
         return write_excel(self.state_keeper.get_current_state())

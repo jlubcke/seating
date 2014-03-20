@@ -1,19 +1,20 @@
 from StringIO import StringIO
 import random
 import sys
-from io import BytesIO
+from bunch import Bunch
 
 import numpy
 import simplejson
 
 
-class State(object):
+class State(Bunch):
 
-    def __init__(self, names=None, group_names=None, group_indexes=None, seating=None, fixed=None, geometry=None):
+    def __init__(self, names=None, group_names=None, group_indexes=None, group_weights=None, seating=None, fixed=None, geometry=None):
 
         self.names = names if names is not None else ["Person #%d" % i for i in range(seating.shape[0])]
         self.group_names = group_names if group_names is not None else ["Meal #%d" % i for i in range(len(group_indexes))]
         self.group_indexes = group_indexes
+        self.group_weights = group_weights if group_weights else [1] * len(group_indexes)
         self.seating = seating
         self.fixed = fixed if fixed is not None else numpy.zeros(seating.shape, dtype=bool)
         self.geometry = geometry
@@ -46,6 +47,7 @@ class State(object):
         return State(names=self.names,
                      group_names=self.group_names,
                      group_indexes=self.group_indexes,
+                     group_weights=self.group_weights,
                      seating=self.seating.copy(),
                      fixed=self.fixed,
                      geometry=self.geometry.copy())
@@ -269,91 +271,6 @@ class PrintLogger(object):
         print msg
 
 
-def parse(filename):
-
-    group_names = []
-    groups = []
-
-    group = []
-    position = []
-
-    with open(filename, "rb") as f:
-        for line in f:
-            if line.startswith('#'):
-                group_names.append(line[1:].strip())
-                if position:
-                    group.append(position)
-                    position = []
-                if group:
-                    groups.append(group)
-                    group = []
-            elif line.strip() == '':
-                if position:
-                    group.append(position)
-                    position = []
-            else:
-                fixed = line.startswith('*')
-                if fixed:
-                    line = line[1:]
-                position.append([line.strip(), fixed])
-
-        if position:
-            group.append(position)
-        if group:
-            groups.append(group)
-
-    cnt = 0
-    group_indexes = []
-    for group in groups:
-        group_indexes.append((cnt, cnt + len(group)))
-        cnt += len(group)
-
-    names = list({name
-                  for group in groups
-                  for position in group
-                  for (name, _) in position})
-    names.sort()
-
-    group_indexes = group_indexes
-
-    seating = numpy.zeros((len(names), group_indexes[-1][1]), dtype=int)
-    fixed = numpy.zeros((len(names), group_indexes[-1][1]), dtype=bool)
-
-    persons_by_name = {name: idx for idx, name in enumerate(names)}
-    cnt = 0
-    for group in groups:
-        for position in group:
-            for name, is_fixed in position:
-                row = persons_by_name[name]
-                seating[row, cnt] = 1
-                fixed[row, cnt] = is_fixed
-            cnt += 1
-
-    geometry = seating.copy().transpose()
-
-    return State(names=names,
-                 group_names=group_names,
-                 group_indexes=group_indexes,
-                 seating=seating,
-                 fixed=fixed,
-                 geometry=geometry)
-
-
-def export(state):
-    result = StringIO()
-
-    for group_name, (i, j) in zip(state.group_names, state.group_indexes):
-        result.write('# ' + group_name + "\n\n")
-        for t in range(i, j):
-            for p in numpy.where(state.seating[:, t] == 1)[0]:
-                if state.fixed[p, t]:
-                    result.write('*')
-                result.write(state.names[p] + '\n')
-            result.write('\n')
-        result.write('\n')
-    return result.getvalue()
-
-
 def optimize(start):
     start.shuffle()
     evaluator = TablePositionAgnosticClosnessEvaluator()
@@ -367,10 +284,7 @@ def optimize(start):
 
 
 def main():
-    if len(sys.argv) == 2:
-        start = parse(sys.argv[1])
-    else:
-        start = start_seating()
+    start = start_seating()
     print start.seating
     print dump(start)
     start.shuffle()
@@ -396,7 +310,8 @@ def main():
     n[n == 1] = 0
     print n.sum(axis=0)
 
-    print export(state)
+    print dump(state)
+    print report(state)
 
 
 if __name__ == '__main__':

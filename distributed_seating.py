@@ -5,7 +5,8 @@ from statekeeper import StateKeeper
 from evaluators import HillClimber
 from server import SeatingMaster
 from client import SeatingSlave
-from seating import SquareStateEvaluator, start_seating, TablePositionAgnosticClosnessEvaluator, parse
+from seating import SquareStateEvaluator, start_seating, TablePositionAgnosticClosnessEvaluator
+from text_format import read_text
 
 
 def main(start=None, addr=None, port=None, slave=None):
@@ -17,7 +18,7 @@ def main(start=None, addr=None, port=None, slave=None):
         if start.endswith('.xls') or start.endswith('.xlsx'):
             state = read_excel(start)
         elif start.endswith('.txt'):
-            state = parse(start)
+            state = read_text(start)
         else:
             state = None
 
