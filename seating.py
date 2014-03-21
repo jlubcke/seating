@@ -9,13 +9,20 @@ import simplejson
 
 class State(Bunch):
 
-    def __init__(self, names=None, group_names=None, group_indexes=None, group_weights=None, seating=None, fixed=None, geometry=None):
+    def __init__(self, names=None, group_names=None, group_indexes=None, group_weights=None, seating=None, weights=None, fixed=None, geometry=None):
 
         self.names = names if names is not None else ["Person #%d" % i for i in range(seating.shape[0])]
         self.group_names = group_names if group_names is not None else ["Meal #%d" % i for i in range(len(group_indexes))]
         self.group_indexes = group_indexes
         self.group_weights = group_weights if group_weights else [1] * len(group_indexes)
         self.seating = seating
+
+        if weights is None:
+            weights_row = [[weight] * (j - i) for (i, j), weight in zip(group_indexes, group_weights)]
+            weights_row = [w for l in weights_row for w in l]
+            weights = numpy.array([weights_row] * seating.shape[0])
+        self.weights = weights
+
         self.fixed = fixed if fixed is not None else numpy.zeros(seating.shape, dtype=bool)
         self.geometry = geometry
         self.closeness = None
@@ -49,6 +56,7 @@ class State(Bunch):
                      group_indexes=self.group_indexes,
                      group_weights=self.group_weights,
                      seating=self.seating.copy(),
+
                      fixed=self.fixed,
                      geometry=self.geometry.copy())
 
@@ -169,7 +177,7 @@ class TablePositionAgnosticClosnessEvaluator(ClosenessEvaluator):
     def closeness(self, state):
         if state.closeness is not None:
             return state.closeness
-        result = numpy.dot(state.seating, state.geometry)
+        result = numpy.dot(state.seating * state.weights, state.geometry)
         size = result.shape[0]
         result[numpy.arange(size), numpy.arange(size)] = 0
         state.closeness = result

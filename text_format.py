@@ -74,10 +74,6 @@ def read_text(filename):
 
     geometry = seating.copy().transpose()
 
-    weights = [[weight] * (j - i) for (i, j), weight in zip(group_indexes, group_weights)]
-    weights = [w for l in weights for w in l]
-    seating = seating * numpy.array([weights] * seating.shape[0])
-
     return State(names=names,
                  group_names=group_names,
                  group_indexes=group_indexes,
@@ -94,7 +90,7 @@ def write_text(state):
         weight_str = (" (%d)" % weight) if weight > 1 else ''
         result.write('# ' + group_name + weight_str + "\n\n")
         for t in range(i, j):
-            for p in numpy.where(state.seating[:, t] >= 1)[0]:
+            for p in numpy.where(state.seating[:, t] == 1)[0]:
                 if state.fixed[p, t]:
                     result.write('*')
                 result.write(state.names[p] + '\n')

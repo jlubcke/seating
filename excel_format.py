@@ -166,10 +166,6 @@ def _to_state(seating):
 
     geometry = matrix.copy().transpose()
 
-    weights = [[weight] * (j - i) for (i, j), weight in zip(group_indexes, group_weights)]
-    weights = [w for l in weights for w in l]
-    matrix = matrix * numpy.array([weights] * matrix.shape[0])
-
     return State(names=names,
                  group_names=group_names,
                  group_indexes=group_indexes,
@@ -190,7 +186,7 @@ def main():
 
     print dump(state)
     print report(state)
-    print state
+    print repr(state)
     print write_text(state)
     with open("out.xls", "wb") as f:
         f.write(write_excel(state))
