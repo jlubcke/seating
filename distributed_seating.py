@@ -1,6 +1,6 @@
 import argparse
-from excel_format import read_excel
 
+from excel_format import read_excel
 from statekeeper import StateKeeper
 from evaluators import HillClimber
 from server import SeatingMaster

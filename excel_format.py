@@ -1,15 +1,14 @@
 import sys
 from io import BytesIO
-import re
 
+import re
 import numpy
-from seating import State, optimize, dump, report
+from seating import State, optimize, dump, report, start_seating
 from text_format import read_text, write_text
 from xlrd import open_workbook
 from xlutils.margins import number_of_good_rows, number_of_good_cols
 from bunch import Bunch
 from xlwt import Workbook, easyxf
-
 
 
 NORMAL = easyxf()
@@ -20,9 +19,9 @@ def read_excel(filename):
 
     seating = Bunch()
     workbook = open_workbook(filename)
-    for sheet in (workbook).sheets():
+    for sheet in workbook.sheets():
         if sheet.cell(0, 0).value:
-            _read_tables(seating, workbook, sheet)
+            _read_tables(seating, sheet)
         else:
             _read_groups(seating, sheet)
 
@@ -43,7 +42,7 @@ def write_excel(state):
     for meal_name, (i, j), weight in zip(state.group_names, state.group_indexes, state.group_weights):
         if i + 1 == j:
             if weight > 1:
-                meal_name = meal_name + " (%d)" % weight
+                meal_name += " (%d)" % weight
             groups.write(0, group_col_count, meal_name, style=BOLD)
             for p in range(state.persons):
                 seated = state.seating[p, i]
@@ -93,7 +92,7 @@ def _read_groups(seating, sheet):
     seating.groups = [(group_name, groups_by_group_name[group_name]) for group_name in group_names]
 
 
-def _read_tables(seating, workbook, sheet):
+def _read_tables(seating, sheet):
 
     meals = []
     for col in range(number_of_good_cols(sheet)):
@@ -179,8 +178,10 @@ def main():
     filename = sys.argv[1] if len(sys.argv) == 2 else "seating.txt"
     if filename.endswith('.xls') or filename.endswith('.xlsx'):
         state = read_excel(filename)
-    if filename.endswith('.txt'):
+    elif filename.endswith('.txt'):
         state = read_text(filename)
+    else:
+        state = start_seating()
 
     state = optimize(state)
 

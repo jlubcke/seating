@@ -1,4 +1,5 @@
 from StringIO import StringIO
+
 import re
 import numpy
 from seating import State
@@ -17,11 +18,8 @@ def read_text(filename):
         for line in f:
             if line.startswith('#'):
                 name, weight_str = re.match(r"#\s*(\S*)\s*(?:\((\d+)\))?", line.strip()).groups()
-                if weight_str:
-                    weight = int(weight_str)
-                else:
-                    weight = 1
                 group_names.append(name)
+                weight = int(weight_str) if weight_str else 1
                 group_weights.append(weight)
 
                 if position:
@@ -98,5 +96,3 @@ def write_text(state):
         result.write('\n')
 
     return result.getvalue()
-
-

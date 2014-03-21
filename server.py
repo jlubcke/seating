@@ -1,6 +1,7 @@
+from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
+
 from excel_format import write_excel
 from seating import State, dump, report
-from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
 from text_format import write_text
 
 

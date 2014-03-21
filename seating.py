@@ -1,8 +1,7 @@
 from StringIO import StringIO
 import random
-import sys
-from bunch import Bunch
 
+from bunch import Bunch
 import numpy
 import simplejson
 
