@@ -13,6 +13,7 @@ from xlwt import Workbook, easyxf
 
 NORMAL = easyxf()
 BOLD = easyxf('font: bold on')
+ROTATED = easyxf('alignment: rotation 90; font: bold on')
 
 
 def read_excel(filename):
@@ -43,7 +44,8 @@ def write_excel(state):
         if i + 1 == j:
             if weight > 1:
                 meal_name += " (%d)" % weight
-            groups.write(0, group_col_count, meal_name, style=BOLD)
+            groups.col(group_col_count).width = 600
+            groups.write(0, group_col_count, meal_name, style=ROTATED)
             for p in range(state.persons):
                 seated = state.seating[p, i]
                 if seated:
