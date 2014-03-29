@@ -39,15 +39,9 @@ def write_excel(state):
     wb = Workbook(encoding="utf8")
 
     groups = wb.add_sheet('Groups')
-    tables = wb.add_sheet('Tables')
-    placement = wb.add_sheet('Placement')
-
-    placement_col_count = 0
-    group_col_count = 1
-    table_row_count = 0
     for person, name in enumerate(state.names):
         groups.write(person + 1, 0, name)
-
+    group_col_count = 1
     for group_name, (i, j), weight in zip(state.group_names, state.group_indexes, state.group_weights):
         if i + 1 == j:
             if weight > 1:
@@ -60,9 +54,10 @@ def write_excel(state):
                     groups.write(person + 1, group_col_count, 1)
             group_col_count += 1
 
-        else:
-            placement.write(0, placement_col_count, group_name, style=BOLD)
-            placement_row_count = 2
+    tables = wb.add_sheet('Tables')
+    table_row_count = 0
+    for group_name, (i, j), weight in zip(state.group_names, state.group_indexes, state.group_weights):
+        if i + 1 < j:
             tables.write(table_row_count, 0, group_name, style=BOLD)
             table_col_count = 1
             for position in range(i, j):
@@ -70,6 +65,16 @@ def write_excel(state):
                 tables.write(table_row_count, table_col_count, len(persons))
                 tables.col(table_col_count).width = 1000
                 table_col_count += 1
+            table_row_count += 1
+
+    placement = wb.add_sheet('Placement')
+    placement_col_count = 0
+    for group_name, (i, j), weight in zip(state.group_names, state.group_indexes, state.group_weights):
+        if i + 1 < j:
+            placement.write(0, placement_col_count, group_name, style=BOLD)
+            placement_row_count = 2
+            for position in range(i, j):
+                persons = numpy.where(state.seating[:, position] == 1)[0]
                 for person in persons:
                     fixed = state.fixed[person, position]
                     label = state.names[person]
@@ -78,9 +83,7 @@ def write_excel(state):
                     placement.write(placement_row_count, placement_col_count, label, style=BOLD if fixed else NORMAL)
                     placement_row_count += 1
                 placement_row_count += 1
-
             placement_col_count += 1
-            table_row_count += 1
 
     result = BytesIO()
     wb.save(result)
@@ -119,23 +122,23 @@ def _read_placement(seating, sheet):
     for col in range(number_of_good_cols(sheet)):
         meal_name = sheet.cell(0, col).value
 
-        tables = []
-        table = []
+        positions = []
+        position = []
         for cell in sheet.col(col)[1:]:
-            value = cell.value
-            if value:
-                is_fixed = value.startswith('*')
+            name = cell.value
+            if name:
+                is_fixed = name.startswith('*')
                 if is_fixed:
-                    value = value[1:]
-                table.append([value, is_fixed])
+                    name = name[1:]
+                position.append([name, is_fixed])
             else:
-                if table:
-                    tables.append(table)
-                table = []
-        if table:
-            tables.append(table)
+                if position:
+                    positions.append(position)
+                position = []
+        if position:
+            positions.append(position)
 
-        meals.append((meal_name, tables))
+        meals.append((meal_name, positions))
 
     seating.meals = meals
 
@@ -146,11 +149,11 @@ def _to_state(seating):
     group_indexes = []
     cnt = 0
 
-    for meal_name, tables in seating.meals:
+    for meal_name, positions in seating.meals:
         group_names.append(meal_name)
-        group_indexes.append((cnt, cnt+len(tables)))
+        group_indexes.append((cnt, cnt+len(positions)))
         group_weights.append(1)
-        cnt += len(tables)
+        cnt += len(positions)
 
     for group_name, group in seating.groups:
         group_name, weight_str = re.match(r"\s*(\S*)\s*(?:\((\d+)\))?", group_name).groups()
@@ -170,9 +173,9 @@ def _to_state(seating):
     person_index_by_name = {name: i for i, name in enumerate(names)}
 
     col = 0
-    for _, tables in seating.meals:
-        for table in tables:
-            for name, is_fixed in table:
+    for _, positions in seating.meals:
+        for position in positions:
+            for name, is_fixed in position:
                 row = person_index_by_name[name]
                 matrix[row, col] = 1
                 fixed[row, col] = is_fixed
