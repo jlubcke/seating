@@ -21,8 +21,14 @@ def read_excel(filename):
     seating = Bunch()
     workbook = open_workbook(filename)
     for sheet in workbook.sheets():
-        if sheet.cell(0, 0).value:
+        if sheet.name == 'Groups':
+            _read_groups(seating, sheet)
+        elif sheet.name == 'Tables':
             _read_tables(seating, sheet)
+        elif sheet.name == 'Seating':
+            _read_placement(seating, sheet)
+        elif sheet.cell(0, 0).value:
+            _read_placement(seating, sheet)
         else:
             _read_groups(seating, sheet)
 
@@ -32,40 +38,49 @@ def read_excel(filename):
 def write_excel(state):
     wb = Workbook(encoding="utf8")
 
-    meals = wb.add_sheet('Meals')
     groups = wb.add_sheet('Groups')
+    tables = wb.add_sheet('Tables')
+    placement = wb.add_sheet('Placement')
 
-    meal_col_count = 0
+    placement_col_count = 0
     group_col_count = 1
-    for p, name in enumerate(state.names):
-        groups.write(p + 1, 0, name)
+    table_row_count = 0
+    for person, name in enumerate(state.names):
+        groups.write(person + 1, 0, name)
 
-    for meal_name, (i, j), weight in zip(state.group_names, state.group_indexes, state.group_weights):
+    for group_name, (i, j), weight in zip(state.group_names, state.group_indexes, state.group_weights):
         if i + 1 == j:
             if weight > 1:
-                meal_name += " (%d)" % weight
+                group_name += " (%d)" % weight
             groups.col(group_col_count).width = 600
-            groups.write(0, group_col_count, meal_name, style=ROTATED)
-            for p in range(state.persons):
-                seated = state.seating[p, i]
+            groups.write(0, group_col_count, group_name, style=ROTATED)
+            for person in range(state.persons):
+                seated = state.seating[person, i]
                 if seated:
-                    groups.write(p + 1, group_col_count, 1)
+                    groups.write(person + 1, group_col_count, 1)
             group_col_count += 1
 
         else:
-            meals.write(0, meal_col_count, meal_name, style=BOLD)
-            meal_row_count = 2
-            for table in range(j-i):
-                for p in numpy.where(state.seating[:, i+table] == 1)[0]:
-                    fixed = state.fixed[p, i+table]
-                    label = state.names[p]
+            placement.write(0, placement_col_count, group_name, style=BOLD)
+            placement_row_count = 2
+            tables.write(table_row_count, 0, group_name, style=BOLD)
+            table_col_count = 1
+            for position in range(i, j):
+                persons = numpy.where(state.seating[:, position] == 1)[0]
+                tables.write(table_row_count, table_col_count, len(persons))
+                tables.col(table_col_count).width = 1000
+                table_col_count += 1
+                for person in persons:
+                    fixed = state.fixed[person, position]
+                    label = state.names[person]
                     if fixed:
                         label = "*" + label
-                    meals.write(meal_row_count, meal_col_count, label, style=BOLD if fixed else NORMAL)
-                    meal_row_count += 1
-                meal_row_count += 1
+                    placement.write(placement_row_count, placement_col_count, label, style=BOLD if fixed else NORMAL)
+                    placement_row_count += 1
+                placement_row_count += 1
 
-            meal_col_count += 1
+            placement_col_count += 1
+            table_row_count += 1
 
     result = BytesIO()
     wb.save(result)
@@ -95,6 +110,10 @@ def _read_groups(seating, sheet):
 
 
 def _read_tables(seating, sheet):
+    pass
+
+
+def _read_placement(seating, sheet):
 
     meals = []
     for col in range(number_of_good_cols(sheet)):
@@ -105,10 +124,10 @@ def _read_tables(seating, sheet):
         for cell in sheet.col(col)[1:]:
             value = cell.value
             if value:
-                fixed = value.startswith('*')
-                if fixed:
+                is_fixed = value.startswith('*')
+                if is_fixed:
                     value = value[1:]
-                table.append([value, fixed])
+                table.append([value, is_fixed])
             else:
                 if table:
                     tables.append(table)
@@ -153,10 +172,10 @@ def _to_state(seating):
     col = 0
     for _, tables in seating.meals:
         for table in tables:
-            for name, is_bold in table:
+            for name, is_fixed in table:
                 row = person_index_by_name[name]
                 matrix[row, col] = 1
-                fixed[row, col] = is_bold
+                fixed[row, col] = is_fixed
             col += 1
 
     for _, group in seating.groups:
@@ -185,7 +204,7 @@ def main():
     else:
         state = start_seating()
 
-    state = optimize(state)
+    # state = optimize(state)
 
     print dump(state)
     print report(state)
