@@ -18,14 +18,14 @@ ROTATED = easyxf('alignment: rotation 90; font: bold on')
 
 def read_excel(filename):
 
-    seating = Bunch()
+    seating = Bunch(names=None, groups=None, dimensions=None, placements=None)
     workbook = open_workbook(filename)
     for sheet in workbook.sheets():
         if sheet.name == 'Groups':
             _read_groups(seating, sheet)
         elif sheet.name == 'Tables':
             _read_tables(seating, sheet)
-        elif sheet.name == 'Seating':
+        elif sheet.name == 'Placement':
             _read_placement(seating, sheet)
         elif sheet.cell(0, 0).value:
             _read_placement(seating, sheet)
@@ -113,24 +113,34 @@ def _read_groups(seating, sheet):
 
 
 def _read_tables(seating, sheet):
-    pass
+    dimensions = []
+    for row in range(0, number_of_good_rows(sheet, ncols=1)):
+        name = sheet.cell(row, 0).value
+        sizes = []
+        for col in range(1, number_of_good_cols(sheet)):
+            size = int(sheet.cell(row, col).value)
+            if not size:
+                break
+            sizes.append(size)
+        dimensions.append([name, sizes])
+    seating.dimensions = dimensions
 
 
 def _read_placement(seating, sheet):
 
-    meals = []
+    placements = []
     for col in range(number_of_good_cols(sheet)):
-        meal_name = sheet.cell(0, col).value
+        placement_name = sheet.cell(0, col).value
 
         positions = []
         position = []
         for cell in sheet.col(col)[1:]:
-            name = cell.value
-            if name:
-                is_fixed = name.startswith('*')
+            person = cell.value
+            if person:
+                is_fixed = person.startswith('*')
                 if is_fixed:
-                    name = name[1:]
-                position.append([name, is_fixed])
+                    person = person[1:]
+                position.append([person, is_fixed])
             else:
                 if position:
                     positions.append(position)
@@ -138,22 +148,41 @@ def _read_placement(seating, sheet):
         if position:
             positions.append(position)
 
-        meals.append((meal_name, positions))
+        placements.append((placement_name, positions))
 
-    seating.meals = meals
+    seating.placements = placements
 
 
 def _to_state(seating):
     group_names = []
     group_weights = []
     group_indexes = []
-    cnt = 0
 
-    for meal_name, positions in seating.meals:
-        group_names.append(meal_name)
-        group_indexes.append((cnt, cnt+len(positions)))
-        group_weights.append(1)
-        cnt += len(positions)
+    use_placement = True
+
+    if seating.dimensions is not None:
+        for (dimensions_name, sizes), (placement_name, positions) in zip(seating.dimensions, seating.placements):
+            if dimensions_name != placement_name:
+                use_placement = False
+                break
+            for size, position in zip(sizes, positions):
+                if size != len(positions):
+                    use_placement = False
+
+    if use_placement:
+        cnt = 0
+        for placement_name, positions in seating.placements:
+            group_names.append(placement_name)
+            group_indexes.append((cnt, cnt+len(positions)))
+            group_weights.append(1)
+            cnt += len(positions)
+    else:
+        cnt = 0
+        for dimension_name, sizes in seating.dimensions:
+            group_names.append(dimension_name)
+            group_indexes.append((cnt, cnt+len(sizes)))
+            group_weights.append(1)
+            cnt += len(sizes)
 
     for group_name, group in seating.groups:
         group_name, weight_str = re.match(r"\s*(\S*)\s*(?:\((\d+)\))?", group_name).groups()
@@ -172,14 +201,25 @@ def _to_state(seating):
 
     person_index_by_name = {name: i for i, name in enumerate(names)}
 
-    col = 0
-    for _, positions in seating.meals:
-        for position in positions:
-            for name, is_fixed in position:
-                row = person_index_by_name[name]
-                matrix[row, col] = 1
-                fixed[row, col] = is_fixed
-            col += 1
+    if use_placement:
+        col = 0
+        for _, positions in seating.placements:
+            for position in positions:
+                for person, is_fixed in position:
+                    row = person_index_by_name[person]
+                    matrix[row, col] = 1
+                    fixed[row, col] = is_fixed
+                col += 1
+    else:
+        col = 0
+        for _, sizes in seating.dimensions:
+            persons = iter(names)
+            for size in sizes:
+                for p in range(size):
+                    row = person_index_by_name[next(persons)]
+                    matrix[row, col] = 1
+                    fixed[row, col] = False
+                col += 1
 
     for _, group in seating.groups:
         for name in group:
