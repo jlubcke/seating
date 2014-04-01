@@ -1,5 +1,6 @@
 from excel_format import write_excel, read_excel
 import numpy
+import pytest
 from seating import start_seating, dump, State, optimize, TablePositionAgnosticClosnessEvaluator, SingleThreadedSearcher, \
     ClosenessStepper, SquareStateEvaluator, PrintLogger
 from text_format import write_text, read_text
@@ -40,22 +41,58 @@ def test_optimize():
     assert e2 < e1
 
 
-def test_json():
-    initial = start_seating()
+def _explicit_initial():
+    return read_text("""
+# Meal 1
+
+Alice
+
+Bob
+Charlie
+
+# Meal 2
+
+Alice
+Bob
+
+Charlie
+
+# Meal 3
+
+Charlie
+Dave
+
+# Group 1 (17)
+
+Alice
+Bob
+
+# Group 2 (42)
+
+Charlie
+Dave
+""")
+
+
+@pytest.fixture(params=[start_seating(),
+                        _explicit_initial()])
+def initial(request):
+    return request.param
+
+
+def test_json(initial):
     json = initial.to_json()
     actual = State.from_json(json)
     _assert_same_state(initial, actual)
 
 
-def test_excel():
-    initial = start_seating()
+def test_excel(initial):
     excel_content = write_excel(initial)
     actual = read_excel(excel_content)
     _assert_same_state(initial, actual)
 
 
-def test_text_format():
-    initial = start_seating()
+def test_text_format(initial):
     text_content = write_text(initial)
     actual = read_text(text_content)
     _assert_same_state(initial, actual)

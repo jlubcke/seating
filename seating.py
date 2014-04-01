@@ -42,6 +42,16 @@ class State(Bunch):
     def __ne__(self, other):
             return not self.__eq__(other)
 
+    def __repr__(self):
+        result = StringIO()
+        result.write("State:\n")
+        result.write("  names: %s\n" % self.names)
+        result.write("  groups: %s\n" % self.group_names)
+        result.write("  group_indexes: %s\n" % self.group_indexes)
+        result.write("  group_weights: %s\n" % self.group_weights)
+        result.write("  seating:\n%s\n" % self.seating)
+        return result.getvalue()
+
     @property
     def persons(self):
         return self.seating.shape[0]
