@@ -1,6 +1,7 @@
 from excel_format import write_excel, read_excel
 import numpy
-from seating import start_seating, dump, State
+from seating import start_seating, dump, State, optimize, TablePositionAgnosticClosnessEvaluator, SingleThreadedSearcher, \
+    ClosenessStepper, SquareStateEvaluator, PrintLogger
 from text_format import write_text, read_text
 
 
@@ -21,8 +22,22 @@ def test_swap():
     assert dump(initial) != dump(state)
     state.swap(2, 4, 0, 1)
     assert dump(initial) == dump(state)
-
     _assert_same_state(initial, state)
+    assert initial == state
+    assert not initial != state
+
+
+def test_optimize():
+    initial = start_seating()
+    evaluator = TablePositionAgnosticClosnessEvaluator()
+    searcher = SingleThreadedSearcher(
+        ClosenessStepper(evaluator),
+        SquareStateEvaluator(evaluator),
+        PrintLogger()
+    )
+    state, e1 = searcher.search(initial, n=1)
+    _, e2 = searcher.search(initial, n=100)
+    assert e2 < e1
 
 
 def test_json():

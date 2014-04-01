@@ -26,6 +26,21 @@ class State(Bunch):
         self.geometry = geometry
         self.closeness = None
 
+    def __eq__(self, other):
+        if type(other) != State:
+            return False
+
+        for key in self:
+            if isinstance(self[key], (numpy.ndarray, numpy.generic)):
+                if not numpy.array_equal(self[key], self[key]):
+                    return False
+            else:
+                if self[key] != other[key]:
+                    return False
+        return True
+
+    def __ne__(self, other):
+            return not self.__eq__(other)
 
     @property
     def persons(self):

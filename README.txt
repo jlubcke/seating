@@ -10,6 +10,7 @@ virtualenv env
 pip install numpy
 pip install bunch
 pip install requests
+pip install pytest
 
 # Extra
 
