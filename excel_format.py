@@ -16,10 +16,10 @@ BOLD = easyxf('font: bold on')
 ROTATED = easyxf('alignment: rotation 90; font: bold on')
 
 
-def read_excel(filename):
+def read_excel(file_contents):
 
     seating = Bunch(names=None, groups=None, dimensions=None, placements=None)
-    workbook = open_workbook(filename)
+    workbook = open_workbook(file_contents=file_contents)
     for sheet in workbook.sheets():
         if sheet.name == 'Groups':
             _read_groups(seating, sheet)
@@ -180,18 +180,18 @@ def _to_state(seating):
         cnt = 0
         for dimension_name, sizes in seating.dimensions:
             group_names.append(dimension_name)
-            group_indexes.append((cnt, cnt+len(sizes)))
+            group_indexes.append([cnt, cnt+len(sizes)])
             group_weights.append(1)
             cnt += len(sizes)
 
     for group_name, group in seating.groups:
-        group_name, weight_str = re.match(r"\s*(\S*)\s*(?:\((\d+)\))?", group_name).groups()
+        group_name, weight_str = re.match(r"\s*([^(]*)\s*(?:\((\d+)\))?", group_name).groups()
         if weight_str:
             weight = int(weight_str)
         else:
             weight = 1
-        group_names.append(group_name)
-        group_indexes.append((cnt, cnt+1))
+        group_names.append(group_name.strip())
+        group_indexes.append([cnt, cnt+1])
         group_weights.append(weight)
         cnt += 1
 
@@ -241,9 +241,9 @@ def _to_state(seating):
 def main():
     filename = sys.argv[1] if len(sys.argv) == 2 else "seating.txt"
     if filename.endswith('.xls') or filename.endswith('.xlsx'):
-        state = read_excel(filename)
+        state = read_excel(open(filename).read())
     elif filename.endswith('.txt'):
-        state = read_text(filename)
+        state = read_text(open(filename).read())
     else:
         state = start_seating()
 

@@ -1,11 +1,12 @@
 from StringIO import StringIO
+from io import BytesIO
 
 import re
 import numpy
 from seating import State
 
 
-def read_text(filename):
+def read_text(content):
 
     group_names = []
     group_weights = []
@@ -14,39 +15,38 @@ def read_text(filename):
     group = []
     position = []
 
-    with open(filename, "rb") as f:
-        for line in f:
-            if line.startswith('#'):
-                name, weight_str = re.match(r"#\s*(\S*)\s*(?:\((\d+)\))?", line.strip()).groups()
-                group_names.append(name)
-                weight = int(weight_str) if weight_str else 1
-                group_weights.append(weight)
+    for line in BytesIO(content):
+        if line.startswith('#'):
+            name, weight_str = re.match(r"#\s*([^(]*)\s*(?:\((\d+)\))?", line.strip()).groups()
+            group_names.append(name.strip())
+            weight = int(weight_str) if weight_str else 1
+            group_weights.append(weight)
 
-                if position:
-                    group.append(position)
-                    position = []
-                if group:
-                    groups.append(group)
-                    group = []
-            elif line.strip() == '':
-                if position:
-                    group.append(position)
-                    position = []
-            else:
-                fixed = line.startswith('*')
-                if fixed:
-                    line = line[1:]
-                position.append([line.strip(), fixed])
+            if position:
+                group.append(position)
+                position = []
+            if group:
+                groups.append(group)
+                group = []
+        elif line.strip() == '':
+            if position:
+                group.append(position)
+                position = []
+        else:
+            fixed = line.startswith('*')
+            if fixed:
+                line = line[1:]
+            position.append([line.strip(), fixed])
 
-        if position:
-            group.append(position)
-        if group:
-            groups.append(group)
+    if position:
+        group.append(position)
+    if group:
+        groups.append(group)
 
     cnt = 0
     group_indexes = []
     for group in groups:
-        group_indexes.append((cnt, cnt + len(group)))
+        group_indexes.append([cnt, cnt + len(group)])
         cnt += len(group)
 
     names = list({name

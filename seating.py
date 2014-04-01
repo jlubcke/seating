@@ -9,7 +9,7 @@ import simplejson
 class State(Bunch):
 
     def __init__(self, names=None, group_names=None, group_indexes=None, group_weights=None, seating=None, weights=None, fixed=None, geometry=None):
-
+        super(State, self).__init__()
         self.names = names if names is not None else ["Person #%d" % i for i in range(seating.shape[0])]
         self.group_names = group_names if group_names is not None else ["Meal #%d" % i for i in range(len(group_indexes))]
         self.group_indexes = group_indexes
@@ -17,7 +17,7 @@ class State(Bunch):
         self.seating = seating
 
         if weights is None:
-            weights_row = [[weight] * (j - i) for (i, j), weight in zip(group_indexes, group_weights)]
+            weights_row = [[weight] * (j - i) for (i, j), weight in zip(self.group_indexes, self.group_weights)]
             weights_row = [w for l in weights_row for w in l]
             weights = numpy.array([weights_row] * seating.shape[0])
         self.weights = weights
@@ -33,18 +33,24 @@ class State(Bunch):
 
     @staticmethod
     def from_json(json):
-        state_as_dict = simplejson.loads(json)
-        return State(group_names=state_as_dict['group_names'],
-                     group_indexes=state_as_dict['group_indexes'],
-                     seating=numpy.array(state_as_dict['seating']),
-                     fixed=numpy.array(state_as_dict['fixed']),
-                     geometry=numpy.array(state_as_dict['geometry']))
+        values = simplejson.loads(json)
+        return State(names=values['names'],
+                     group_names=values['group_names'],
+                     group_indexes=values['group_indexes'],
+                     group_weights=values['group_weights'],
+                     seating=numpy.array(values['seating']),
+                     fixed=numpy.array(values['fixed']),
+                     weights=numpy.array(values['weights']),
+                     geometry=numpy.array(values['geometry']))
 
     def to_json(self):
         return simplejson.dumps({
+            "names": self.names,
             "group_names": self.group_names,
-            "gropu_indexes": self.group_indexes,
+            "group_indexes": self.group_indexes,
+            "group_weights": self.group_weights,
             "seating": self.seating.tolist(),
+            "weights": self.weights.tolist(),
             "fixed": self.fixed.tolist(),
             "geometry": self.geometry.tolist()
         })
@@ -55,8 +61,8 @@ class State(Bunch):
                      group_indexes=self.group_indexes,
                      group_weights=self.group_weights,
                      seating=self.seating.copy(),
-
                      fixed=self.fixed,
+                     weights=self.weights,
                      geometry=self.geometry.copy())
 
     def swap(self, i, j, p1, p2):
@@ -93,37 +99,33 @@ class State(Bunch):
 
 def start_seating(persons=150, meals=5, groups=10, positions=15):
 
-    names = ["Person #%d" % i for i in range(persons)]
+    names = ["Person #%03d" % i for i in range(persons)]
     group_names = ["Meal #%d" % i for i in range(meals)]
     group_names.extend(["Group #%d" % i for i in range(groups)])
 
     seating = numpy.zeros((persons, meals * positions + groups), dtype=int)
 
-    group_indexes = [(i*positions, (i+1)*positions) for i in range(meals)]
-    group_indexes += [(i, i+1) for i in range(meals*positions, meals*positions + groups)]
+    group_indexes = [[i*positions, (i+1)*positions] for i in range(meals)]
+    group_weights = [1] * len(group_indexes)
+    group_indexes += [[i, i+1] for i in range(meals*positions, meals*positions + groups)]
+    group_weights += range(2, 2 + groups)
 
     # Some random groups
     seating[:, meals*positions:(meals*positions + groups)] = numpy.random.random_integers(0, 1, size=(persons, groups))
+    seating[0, meals*positions:(meals*positions + groups)] = numpy.ones(shape=(1, groups))  # Avoid empty groups...
 
     # Naive initial seating
     for m, (i, j) in enumerate(group_indexes[:meals]):
         persons_per_table = persons / (j - i)
-        t1 = range(0, persons/2)
-        t2 = range(persons/2, persons)
-        if m == 0:
-            persons_at_meal = t1
-        elif m == meals - 1:
-            persons_at_meal = t2
-        else:
-            persons_at_meal = t1 + t2
-        for k, p in enumerate(persons_at_meal):
-            seating[p, i + k / persons_per_table] = 1
+        for p in range(persons):
+            seating[p, i + p / persons_per_table] = 1
 
     geometry = seating.copy().transpose()
 
     return State(names=names,
                  group_names=group_names,
                  group_indexes=group_indexes,
+                 group_weights=group_weights,
                  seating=seating,
                  geometry=geometry)
 

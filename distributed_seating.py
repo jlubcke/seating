@@ -14,13 +14,14 @@ def main(start=None, addr=None, port=None, slave=None):
         client = SeatingSlave(addr, port)
         client.run()
     else:
-
-        if start.endswith('.xls') or start.endswith('.xlsx'):
-            state = read_excel(start)
-        elif start.endswith('.txt'):
-            state = read_text(start)
-        else:
-            state = None
+        with open(start) as f:
+            content = f.read()
+            if start.endswith('.xls') or start.endswith('.xlsx'):
+                state = read_excel(content)
+            elif start.endswith('.txt'):
+                state = read_text(content)
+            else:
+                raise Exception("Don't know how to open")
 
         if state is None:
             state = start_seating()
