@@ -14,14 +14,15 @@ def main(start=None, addr=None, port=None, slave=None):
         client = SeatingSlave(addr, port)
         client.run()
     else:
-        if start.endswith('.xls') or start.endswith('.xlsx'):
-            state = read_excel(open(start).read())
-        elif start.endswith('.txt'):
-            state = read_text(open(start).read())
-        else:
-            raise Exception("Don't know how to open %s" % start)
+        if start:
+            if start.endswith('.xls') or start.endswith('.xlsx'):
+                state = read_excel(open(start).read())
+            elif start.endswith('.txt'):
+                state = read_text(open(start).read())
+            else:
+                raise Exception("Don't know how to open %s" % start)
 
-        if state is None:
+        else:
             state = start_seating()
 
         state.shuffle()

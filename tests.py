@@ -1,9 +1,12 @@
+from io import BytesIO
 from excel_format import write_excel, read_excel
 import numpy
 import pytest
-from seating import start_seating, dump, State, optimize, TablePositionAgnosticClosnessEvaluator, SingleThreadedSearcher, \
+from seating import start_seating, dump, State, TablePositionAgnosticClosnessEvaluator, SingleThreadedSearcher, \
     ClosenessStepper, SquareStateEvaluator, PrintLogger
 from text_format import write_text, read_text
+from xlrd import open_workbook
+from xlutils.copy import copy
 
 
 def _assert_same_state(expected, actual):
@@ -96,3 +99,41 @@ def test_text_format(initial):
     text_content = write_text(initial)
     actual = read_text(text_content)
     _assert_same_state(initial, actual)
+
+
+def test_excel_change_geometry():
+
+    start_state = start_seating(persons=4, meals=3, positions=2, groups=0)
+
+    assert dump(start_state) == """-- Meal #0
+   [0 1]
+   [2 3]
+-- Meal #1
+   [0 1]
+   [2 3]
+-- Meal #2
+   [0 1]
+   [2 3]
+"""
+
+    rb = open_workbook(file_contents=(write_excel(start_state)))
+
+    assert int(rb.sheet_by_index(1).cell(0, 1).value) == 2
+
+    wb = copy(rb)
+    wb.get_sheet(1).write(0, 1, 3)
+    result = BytesIO()
+    wb.save(result)
+    new_state = read_excel(result.getvalue())
+
+    assert dump(new_state) == """-- Meal #0
+   [0 1 2]
+   [3]
+-- Meal #1
+   [0 1]
+   [2 3]
+-- Meal #2
+   [0 1]
+   [2 3]
+"""
+

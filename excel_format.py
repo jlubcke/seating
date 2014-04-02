@@ -211,15 +211,17 @@ def _to_state(seating):
                     fixed[row, col] = is_fixed
                 col += 1
     else:
-        col = 0
-        for _, sizes in seating.dimensions:
+        for (i, j), (_, sizes) in zip(group_indexes, seating.dimensions):
             persons = iter(names)
-            for size in sizes:
-                for p in range(size):
-                    row = person_index_by_name[next(persons)]
-                    matrix[row, col] = 1
-                    fixed[row, col] = False
-                col += 1
+            try:
+                for col, size in zip(range(i, j), sizes):
+                    for _ in range(size):
+                        row = person_index_by_name[next(persons)]
+                        matrix[row, col] = 1
+                        fixed[row, col] = False
+            except StopIteration:
+                pass
+        col = j
 
     for _, group in seating.groups:
         for name in group:
