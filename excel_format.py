@@ -43,16 +43,15 @@ def write_excel(state):
         groups.write(person + 1, 0, name)
     group_col_count = 1
     for group_name, (i, j), weight in zip(state.group_names, state.group_indexes, state.group_weights):
-        if i + 1 == j:
-            if weight > 1:
-                group_name += " (%d)" % weight
-            groups.col(group_col_count).width = 600
-            groups.write(0, group_col_count, group_name, style=ROTATED)
-            for person in range(state.persons):
-                seated = state.seating[person, i]
-                if seated:
-                    groups.write(person + 1, group_col_count, 1)
-            group_col_count += 1
+        if weight > 1:
+            group_name += " (%d)" % weight
+        groups.col(group_col_count).width = 600
+        groups.write(0, group_col_count, group_name, style=ROTATED)
+        for person in range(state.persons):
+            seated = state.seating[person, i:j].any()
+            if seated:
+                groups.write(person + 1, group_col_count, 1)
+        group_col_count += 1
 
     tables = wb.add_sheet('Tables')
     table_row_count = 0
@@ -118,8 +117,10 @@ def _read_tables(seating, sheet):
         name = sheet.cell(row, 0).value
         sizes = []
         for col in range(1, number_of_good_cols(sheet)):
-            size = int(sheet.cell(row, col).value)
-            if not size:
+            value = sheet.cell(row, col).value
+            if value:
+                size = int(value)
+            else:
                 break
             sizes.append(size)
         dimensions.append([name, sizes])
@@ -158,25 +159,27 @@ def _to_state(seating):
     group_weights = []
     group_indexes = []
 
-    use_placement = True
-
+    # Check that placements still respect dimensions constraint
+    reset_placement = False
     if seating.dimensions is not None:
         for (dimensions_name, sizes), (placement_name, positions) in zip(seating.dimensions, seating.placements):
             if dimensions_name != placement_name:
-                use_placement = False
+                reset_placement = True
                 break
             for size, position in zip(sizes, positions):
-                if size != len(positions):
-                    use_placement = False
+                if size != len(position):
+                    reset_placement = True
 
-    if use_placement:
+    if not reset_placement:
+        # Allocate room given placement
         cnt = 0
         for placement_name, positions in seating.placements:
             group_names.append(placement_name)
-            group_indexes.append((cnt, cnt+len(positions)))
+            group_indexes.append([cnt, cnt+len(positions)])
             group_weights.append(1)
             cnt += len(positions)
     else:
+        # Allocate room given dimensions
         cnt = 0
         for dimension_name, sizes in seating.dimensions:
             group_names.append(dimension_name)
@@ -184,12 +187,15 @@ def _to_state(seating):
             group_weights.append(1)
             cnt += len(sizes)
 
+    placement_names = set(group_names)
     for group_name, group in seating.groups:
         group_name, weight_str = re.match(r"\s*([^(]*)\s*(?:\((\d+)\))?", group_name).groups()
         if weight_str:
             weight = int(weight_str)
         else:
             weight = 1
+        if group_name in placement_names:
+            continue
         group_names.append(group_name.strip())
         group_indexes.append([cnt, cnt+1])
         group_weights.append(weight)
@@ -201,7 +207,7 @@ def _to_state(seating):
 
     person_index_by_name = {name: i for i, name in enumerate(names)}
 
-    if use_placement:
+    if not reset_placement:
         col = 0
         for _, positions in seating.placements:
             for position in positions:
@@ -211,19 +217,23 @@ def _to_state(seating):
                     fixed[row, col] = is_fixed
                 col += 1
     else:
-        for (i, j), (_, sizes) in zip(group_indexes, seating.dimensions):
-            persons = iter(names)
+        groups_by_group_name = {group_name: group for group_name, group in seating.groups}
+        for (i, j), (dimension_name, sizes) in zip(group_indexes, seating.dimensions):
+            persons = iter(groups_by_group_name[dimension_name])
             try:
                 for col, size in zip(range(i, j), sizes):
                     for _ in range(size):
-                        row = person_index_by_name[next(persons)]
+                        person = next(persons)
+                        row = person_index_by_name[person]
                         matrix[row, col] = 1
                         fixed[row, col] = False
             except StopIteration:
                 pass
         col = j
 
-    for _, group in seating.groups:
+    for group_name, group in seating.groups:
+        if group_name in placement_names:
+            continue
         for name in group:
             row = person_index_by_name[name]
             matrix[row, col] = 1

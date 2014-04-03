@@ -103,17 +103,37 @@ def test_text_format(initial):
 
 def test_excel_change_geometry():
 
-    start_state = start_seating(persons=4, meals=3, positions=2, groups=0)
+    start_state = read_text("""\
+# Meal #0
+3
+2
 
-    assert dump(start_state) == """-- Meal #0
-   [0 1]
+1
+0
+
+# Meal #1
+3
+2
+
+1
+0
+# Meal #2
+2
+1
+
+0
+""")
+
+    assert dump(start_state) == """\
+# Meal #0
    [2 3]
--- Meal #1
    [0 1]
+# Meal #1
    [2 3]
--- Meal #2
    [0 1]
-   [2 3]
+# Meal #2
+   [1 2]
+   [0]
 """
 
     rb = open_workbook(file_contents=(write_excel(start_state)))
@@ -126,14 +146,15 @@ def test_excel_change_geometry():
     wb.save(result)
     new_state = read_excel(result.getvalue())
 
-    assert dump(new_state) == """-- Meal #0
+    assert dump(new_state) == """\
+# Meal #0
    [0 1 2]
    [3]
--- Meal #1
+# Meal #1
    [0 1]
    [2 3]
--- Meal #2
+# Meal #2
    [0 1]
-   [2 3]
+   [2]
 """
 

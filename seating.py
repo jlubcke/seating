@@ -142,7 +142,7 @@ def start_seating(persons=150, meals=5, groups=10, positions=15):
     # Naive initial seating
     for m, (i, j) in enumerate(group_indexes[:meals]):
         persons_per_table = persons / (j - i)
-        for p in range(persons):
+        for p in range(persons-1, -1, -1):
             seating[p, i + p / persons_per_table] = 1
 
     geometry = seating.copy().transpose()
@@ -265,7 +265,7 @@ class SingleThreadedSearcher(Searcher):
 def dump(state):
     result = StringIO()
     for m, (i, j) in enumerate(state.group_indexes):
-        result.write("-- %s\n" % state.group_names[m])
+        result.write("# %s\n" % state.group_names[m])
         for p in range(i, j):
             result.write("   %s\n" % (numpy.where(state.seating[:, p] == 1)[0]))
     return result.getvalue()
