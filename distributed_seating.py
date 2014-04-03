@@ -5,7 +5,7 @@ from statekeeper import StateKeeper
 from evaluators import HillClimber
 from server import SeatingMaster
 from client import SeatingSlave
-from seating import SquareStateEvaluator, start_seating, TablePositionAgnosticClosnessEvaluator
+from seating import SquareStateEvaluator, start_seating, TablePositionAgnosticClosnessEvaluator, dump
 from text_format import read_text
 
 
@@ -25,6 +25,7 @@ def main(start=None, addr=None, port=None, slave=None):
         else:
             state = start_seating()
 
+        print dump(state)
         state.shuffle()
 
         state_evaluator = SquareStateEvaluator(TablePositionAgnosticClosnessEvaluator())

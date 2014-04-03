@@ -250,14 +250,18 @@ def _to_state(excel_data):
         groups_by_group_name = {group_name: group for group_name, group in excel_data.groups}
         for (i, j), (dimension_name, sizes) in zip(group_indexes, excel_data.dimensions):
             # Traverse names in group with same name (or all persons if there is no such group)
-            persons = iter(groups_by_group_name.get(dimension_name, names))
+            persons = groups_by_group_name.get(dimension_name, names)
+            person_iter = iter(persons)
             try:
                 for matrix_col, size in zip(range(i, j), sizes):
                     for _ in range(size):
-                        person = next(persons)
+                        person = next(person_iter)
                         matrix_row = person_index_by_name[person]
                         matrix[matrix_row, matrix_col] = 1
                         fixed[matrix_row, matrix_col] = False
+                next(person_iter)
+                msg = "Not enough places for all %d persons in '%s' to fit in the given tables." % (len(persons), dimension_name)
+                raise Exception(msg)
             except StopIteration:
                 pass
         matrix_col = j
