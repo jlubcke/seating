@@ -15,6 +15,7 @@ NORMAL = easyxf()
 BOLD = easyxf('font: bold on')
 ROTATED = easyxf('alignment: rotation 90; font: bold on')
 
+
 class ExcelData(object):
 
     def __init__(self):
@@ -51,6 +52,7 @@ def write_excel(state):
     wb = Workbook(encoding="utf8")
 
     groups = wb.add_sheet('Groups')
+    groups.col(0).width = 7000
     for person, name in enumerate(state.names):
         groups.write(person + 1, 0, name)
     group_col_count = 1

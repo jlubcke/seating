@@ -3,7 +3,7 @@ from excel_format import write_excel, read_excel
 import numpy
 import pytest
 from seating import start_seating, dump, State, TablePositionAgnosticClosnessEvaluator, SingleThreadedSearcher, \
-    ClosenessStepper, SquareStateEvaluator, PrintLogger
+    ClosenessStepper, SquareStateEvaluator, PrintLogger, report
 from text_format import write_text, read_text
 from xlrd import open_workbook
 from xlutils.copy import copy
@@ -159,3 +159,43 @@ def test_excel_change_geometry():
    [2]
 """
 
+
+def test_report():
+    state = read_text("""\
+# Foo
+1
+2
+
+3
+4
+
+#Bar
+1
+3
+
+2
+4
+
+# Odd (17)
+1
+3
+
+# Even (42)
+2
+4
+""")
+
+    assert report(state) == """\
+Foo
+  0
+    Odd: 1
+    Even: 1
+  1
+    Odd: 1
+    Even: 1
+Bar
+  0
+    Odd: 2
+  1
+    Even: 2
+"""
