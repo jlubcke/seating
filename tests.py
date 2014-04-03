@@ -50,7 +50,7 @@ def _explicit_initial():
 
 Alice
 
-Bob
+*Bob
 Charlie
 
 # Meal 2
@@ -98,6 +98,7 @@ def test_excel(initial):
 def test_text_format(initial):
     text_content = write_text(initial)
     actual = read_text(text_content)
+    print repr(actual)
     _assert_same_state(initial, actual)
 
 

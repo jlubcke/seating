@@ -7,6 +7,9 @@ from seating import State
 
 
 def read_text(content):
+    """
+    @type content: str
+    """
 
     group_names = []
     group_weights = []
@@ -43,11 +46,11 @@ def read_text(content):
     if group:
         groups.append(group)
 
-    cnt = 0
+    matrix_col = 0
     group_indexes = []
     for group in groups:
-        group_indexes.append([cnt, cnt + len(group)])
-        cnt += len(group)
+        group_indexes.append([matrix_col, matrix_col + len(group)])
+        matrix_col += len(group)
 
     names = list({name
                   for group in groups
@@ -55,33 +58,34 @@ def read_text(content):
                   for (name, _) in position})
     names.sort()
 
-    group_indexes = group_indexes
-
-    seating = numpy.zeros((len(names), group_indexes[-1][1]), dtype=int)
+    matrix = numpy.zeros((len(names), group_indexes[-1][1]), dtype=int)
     fixed = numpy.zeros((len(names), group_indexes[-1][1]), dtype=bool)
 
     persons_by_name = {name: idx for idx, name in enumerate(names)}
-    cnt = 0
+    matrix_col = 0
     for group in groups:
         for position in group:
             for name, is_fixed in position:
-                row = persons_by_name[name]
-                seating[row, cnt] = 1
-                fixed[row, cnt] = is_fixed
-            cnt += 1
+                matrix_rox = persons_by_name[name]
+                matrix[matrix_rox, matrix_col] = 1
+                fixed[matrix_rox, matrix_col] = is_fixed
+            matrix_col += 1
 
-    geometry = seating.copy().transpose()
+    geometry = matrix.copy().transpose()
 
     return State(names=names,
                  group_names=group_names,
                  group_indexes=group_indexes,
                  group_weights=group_weights,
-                 seating=seating,
+                 seating=matrix,
                  fixed=fixed,
                  geometry=geometry)
 
 
 def write_text(state):
+    """
+    @type state: state.State
+    """
     result = StringIO()
 
     for group_name, (i, j), weight in zip(state.group_names, state.group_indexes, state.group_weights):

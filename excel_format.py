@@ -15,10 +15,19 @@ NORMAL = easyxf()
 BOLD = easyxf('font: bold on')
 ROTATED = easyxf('alignment: rotation 90; font: bold on')
 
+class ExcelData(object):
+
+    def __init__(self):
+        self.names = []
+        self.groups = []
+        self.dimensions = []
+        self.placements = []
 
 def read_excel(file_contents):
-
-    seating = Bunch(names=None, groups=None, dimensions=None, placements=None)
+    """
+    @type file_contents: str
+    """
+    seating = ExcelData()
     workbook = open_workbook(file_contents=file_contents)
     for sheet in workbook.sheets():
         if sheet.name == 'Groups':
@@ -36,6 +45,9 @@ def read_excel(file_contents):
 
 
 def write_excel(state):
+    """
+    @type state: seating.State
+    """
     wb = Workbook(encoding="utf8")
 
     groups = wb.add_sheet('Groups')
@@ -89,7 +101,11 @@ def write_excel(state):
     return result.getvalue()
 
 
-def _read_groups(seating, sheet):
+def _read_groups(excel_data, sheet):
+    """
+    @type excel_data: ExcelData
+    @type sheet: xlrd.sheet.Sheet
+    """
 
     names = []
     for name in sheet.col(0)[1:]:
@@ -107,11 +123,16 @@ def _read_groups(seating, sheet):
             if sheet.cell(row, i+1).value:
                 groups_by_group_name[group_name].append(name)
 
-    seating.names = names
-    seating.groups = [(group_name, groups_by_group_name[group_name]) for group_name in group_names]
+    excel_data.names = names
+    excel_data.groups = [(group_name, groups_by_group_name[group_name]) for group_name in group_names]
 
 
-def _read_tables(seating, sheet):
+def _read_tables(excel_data, sheet):
+    """
+    @type excel_data: ExcelData
+    @type sheet: xlrd.sheet.Sheet
+    """
+
     dimensions = []
     for row in range(0, number_of_good_rows(sheet, ncols=1)):
         name = sheet.cell(row, 0).value
@@ -124,11 +145,14 @@ def _read_tables(seating, sheet):
                 break
             sizes.append(size)
         dimensions.append([name, sizes])
-    seating.dimensions = dimensions
+    excel_data.dimensions = dimensions
 
 
-def _read_placement(seating, sheet):
-
+def _read_placement(excel_data, sheet):
+    """
+    @type excel_data: ExcelData
+    @type sheet: xlrd.sheet.Sheet
+    """
     placements = []
     for col in range(number_of_good_cols(sheet)):
         placement_name = sheet.cell(0, col).value
@@ -151,18 +175,21 @@ def _read_placement(seating, sheet):
 
         placements.append((placement_name, positions))
 
-    seating.placements = placements
+    excel_data.placements = placements
 
 
-def _to_state(seating):
+def _to_state(excel_data):
+    """
+    @type excel_data: ExcelData
+    """
     group_names = []
     group_weights = []
     group_indexes = []
 
     # Check that placements still respect dimensions constraint
     reset_placement = False
-    if seating.dimensions is not None:
-        for (dimensions_name, sizes), (placement_name, positions) in zip(seating.dimensions, seating.placements):
+    if excel_data.dimensions is not None:
+        for (dimensions_name, sizes), (placement_name, positions) in zip(excel_data.dimensions, excel_data.placements):
             if dimensions_name != placement_name:
                 reset_placement = True
                 break
@@ -173,7 +200,7 @@ def _to_state(seating):
     if not reset_placement:
         # Allocate room given placement
         cnt = 0
-        for placement_name, positions in seating.placements:
+        for placement_name, positions in excel_data.placements:
             group_names.append(placement_name)
             group_indexes.append([cnt, cnt+len(positions)])
             group_weights.append(1)
@@ -181,14 +208,15 @@ def _to_state(seating):
     else:
         # Allocate room given dimensions
         cnt = 0
-        for dimension_name, sizes in seating.dimensions:
+        for dimension_name, sizes in excel_data.dimensions:
             group_names.append(dimension_name)
             group_indexes.append([cnt, cnt+len(sizes)])
             group_weights.append(1)
             cnt += len(sizes)
 
+    # Allocate room for groups
     placement_names = set(group_names)
-    for group_name, group in seating.groups:
+    for group_name, group in excel_data.groups:
         group_name, weight_str = re.match(r"\s*([^(]*)\s*(?:\((\d+)\))?", group_name).groups()
         if weight_str:
             weight = int(weight_str)
@@ -201,43 +229,46 @@ def _to_state(seating):
         group_weights.append(weight)
         cnt += 1
 
-    names = seating.names
+    names = excel_data.names
     matrix = numpy.zeros((len(names), cnt), dtype=int)
     fixed = numpy.zeros((len(names), cnt), dtype=bool)
 
     person_index_by_name = {name: i for i, name in enumerate(names)}
 
     if not reset_placement:
-        col = 0
-        for _, positions in seating.placements:
+        # Fill in positions from placement
+        matrix_col = 0
+        for _, positions in excel_data.placements:
             for position in positions:
                 for person, is_fixed in position:
-                    row = person_index_by_name[person]
-                    matrix[row, col] = 1
-                    fixed[row, col] = is_fixed
-                col += 1
+                    matrix_row = person_index_by_name[person]
+                    matrix[matrix_row, matrix_col] = 1
+                    fixed[matrix_row, matrix_col] = is_fixed
+                matrix_col += 1
     else:
-        groups_by_group_name = {group_name: group for group_name, group in seating.groups}
-        for (i, j), (dimension_name, sizes) in zip(group_indexes, seating.dimensions):
-            persons = iter(groups_by_group_name[dimension_name])
+        # Fill in positions in name order
+        groups_by_group_name = {group_name: group for group_name, group in excel_data.groups}
+        for (i, j), (dimension_name, sizes) in zip(group_indexes, excel_data.dimensions):
+            # Traverse names in group with same name (or all persons if there is no such group)
+            persons = iter(groups_by_group_name.get(dimension_name, names))
             try:
-                for col, size in zip(range(i, j), sizes):
+                for matrix_col, size in zip(range(i, j), sizes):
                     for _ in range(size):
                         person = next(persons)
-                        row = person_index_by_name[person]
-                        matrix[row, col] = 1
-                        fixed[row, col] = False
+                        matrix_row = person_index_by_name[person]
+                        matrix[matrix_row, matrix_col] = 1
+                        fixed[matrix_row, matrix_col] = False
             except StopIteration:
                 pass
-        col = j
+        matrix_col = j
 
-    for group_name, group in seating.groups:
+    for group_name, group in excel_data.groups:
         if group_name in placement_names:
             continue
         for name in group:
-            row = person_index_by_name[name]
-            matrix[row, col] = 1
-        col += 1
+            matrix_row = person_index_by_name[name]
+            matrix[matrix_row, matrix_col] = 1
+        matrix_col += 1
 
     geometry = matrix.copy().transpose()
 

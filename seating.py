@@ -10,6 +10,7 @@ class State(Bunch):
 
     def __init__(self, names=None, group_names=None, group_indexes=None, group_weights=None, seating=None, weights=None, fixed=None, geometry=None):
         super(State, self).__init__()
+
         self.names = names if names is not None else ["Person #%d" % i for i in range(seating.shape[0])]
         self.group_names = group_names if group_names is not None else ["Meal #%d" % i for i in range(len(group_indexes))]
         self.group_indexes = group_indexes
@@ -46,10 +47,12 @@ class State(Bunch):
         result = StringIO()
         result.write("State:\n")
         result.write("  names: %s\n" % self.names)
-        result.write("  groups: %s\n" % self.group_names)
+        result.write("  group_names: %s\n" % self.group_names)
         result.write("  group_indexes: %s\n" % self.group_indexes)
         result.write("  group_weights: %s\n" % self.group_weights)
         result.write("  seating:\n%s\n" % self.seating)
+        result.write("  weights:\n%s\n" % self.weights)
+        result.write("  fixed:\n%s\n" % self.fixed)
         return result.getvalue()
 
     @property
@@ -263,6 +266,9 @@ class SingleThreadedSearcher(Searcher):
 
 
 def dump(state):
+    """
+    @type state: State
+    """
     result = StringIO()
     for m, (i, j) in enumerate(state.group_indexes):
         result.write("# %s\n" % state.group_names[m])
@@ -272,7 +278,9 @@ def dump(state):
 
 
 def report(state):
-
+    """
+    @type state: State
+    """
     result = StringIO()
 
     attendance = numpy.dot(state.seating.transpose(), state.seating)
@@ -306,6 +314,9 @@ class PrintLogger(object):
 
 
 def optimize(start):
+    """
+    @type start: State
+    """
     start.shuffle()
     evaluator = TablePositionAgnosticClosnessEvaluator()
     searcher = SingleThreadedSearcher(
