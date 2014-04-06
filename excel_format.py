@@ -3,7 +3,7 @@ from io import BytesIO
 
 import re
 import numpy
-from seating import State, optimize, dump, report, start_seating
+from seating import State, optimize, dump, report, start_seating, stats
 from text_format import read_text, write_text
 from xlrd import open_workbook
 from xlutils.margins import number_of_good_rows, number_of_good_cols
@@ -37,6 +37,8 @@ def read_excel(file_contents):
             _read_tables(seating, sheet)
         elif sheet.name == 'Placement':
             _read_placement(seating, sheet)
+        elif sheet.name == 'Statistics':
+            continue
         elif sheet.cell(0, 0).value:
             _read_placement(seating, sheet)
         else:
@@ -97,6 +99,16 @@ def write_excel(state):
                     placement_row_count += 1
                 placement_row_count += 1
             placement_col_count += 1
+
+    statistics = wb.add_sheet('Statistics')
+    statistics.write(0, 0, "Pair", style=BOLD)
+    statistics.write(0, 1, "Meal closeness", style=BOLD)
+    statistics.write(0, 2, "Group closeness", style=BOLD)
+
+    for index, (pair, meal_closeness, group_closeness) in enumerate(stats(state)):
+        statistics.write(index + 1, 0, pair)
+        statistics.write(index + 1, 1, meal_closeness)
+        statistics.write(index + 1, 2, group_closeness)
 
     result = BytesIO()
     wb.save(result)

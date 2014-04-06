@@ -3,7 +3,7 @@ from excel_format import write_excel, read_excel
 import numpy
 import pytest
 from seating import start_seating, dump, State, TablePositionAgnosticClosnessEvaluator, SingleThreadedSearcher, \
-    ClosenessStepper, SquareStateEvaluator, PrintLogger, report
+    ClosenessStepper, SquareStateEvaluator, PrintLogger, report, stats
 from text_format import write_text, read_text
 from xlrd import open_workbook
 from xlutils.copy import copy
@@ -44,7 +44,8 @@ def test_optimize():
     assert e2 < e1
 
 
-def _explicit_initial():
+@pytest.fixture
+def explicit_initial():
     return read_text("""
 # Meal 1
 
@@ -52,6 +53,7 @@ Alice
 
 *Bob
 Charlie
+Dave
 
 # Meal 2
 
@@ -61,6 +63,9 @@ Bob
 Charlie
 
 # Meal 3
+
+Alice
+Bob
 
 Charlie
 Dave
@@ -78,7 +83,7 @@ Dave
 
 
 @pytest.fixture(params=[start_seating(),
-                        _explicit_initial()])
+                        explicit_initial()])
 def initial(request):
     return request.param
 
@@ -100,6 +105,13 @@ def test_text_format(initial):
     actual = read_text(text_content)
     print repr(actual)
     _assert_same_state(initial, actual)
+
+
+def test_stats(explicit_initial):
+    subject = explicit_initial
+    print dump(subject)
+    assert stats(subject) == [("Alice-Bob", 2, 17),
+                              ("Charlie-Dave", 2, 42)]
 
 
 def test_excel_change_geometry():

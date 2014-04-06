@@ -1,4 +1,5 @@
 from StringIO import StringIO
+from operator import itemgetter
 import random
 
 from bunch import Bunch
@@ -326,6 +327,30 @@ def optimize(start):
     )
     state, _ = searcher.search(start)
     return state
+
+
+def stats(state):
+    """
+    @type state: State
+    """
+
+    is_meal = [1 if i + 1 != j else 0 for i, j in state.group_indexes for _ in range(i, j)]
+    meal_placements = state.seating * numpy.array([is_meal] * state.persons)
+    meal_closeness = numpy.dot(meal_placements * state.weights, meal_placements.transpose())
+
+    is_group = [1 if i + 1 == j else 0 for i, j in state.group_indexes for _ in range(i, j)]
+    group_placements = state.seating * numpy.array([is_group] * state.persons)
+    group_closeness = numpy.dot(group_placements * state.weights, group_placements.transpose())
+
+    result = []
+    for i in range(state.persons):
+        for j in range(state.persons):
+            if i < j:
+                result.append((i, j, meal_closeness[i, j], group_closeness[i, j]))
+
+    result.sort(key=itemgetter(2))
+
+    return [("%s-%s" % (state.names[i], state.names[j]), meal_closeness, group_closeness) for i, j, meal_closeness, group_closeness in result if meal_closeness > 1]
 
 
 def main():
