@@ -3,7 +3,7 @@ from io import BytesIO
 
 import re
 import numpy
-from seating import State, optimize, dump, report, start_seating, stats
+from seating import State, optimize, dump, report, start_seating, stats, fast_search
 from text_format import read_text, write_text
 from xlrd import open_workbook
 from xlutils.margins import number_of_good_rows, number_of_good_cols
@@ -300,7 +300,7 @@ def _to_state(excel_data):
 
 
 def main():
-    filename = sys.argv[1] if len(sys.argv) == 2 else "seating.txt"
+    filename = sys.argv[1] if len(sys.argv) == 2 else "seating.xls"
     if filename.endswith('.xls') or filename.endswith('.xlsx'):
         state = read_excel(open(filename).read())
     elif filename.endswith('.txt'):
@@ -308,13 +308,14 @@ def main():
     else:
         state = start_seating()
 
-    # state = optimize(state)
+    state.shuffle()
+    state = fast_search(state)
 
     print dump(state)
     print report(state)
     print repr(state)
     print write_text(state)
-    with open("out.xls", "wb") as f:
+    with open("seating.xls", "wb") as f:
         f.write(write_excel(state))
 
 if __name__ == '__main__':

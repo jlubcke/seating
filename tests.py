@@ -3,7 +3,7 @@ from excel_format import write_excel, read_excel
 import numpy
 import pytest
 from seating import start_seating, dump, State, TablePositionAgnosticClosnessEvaluator, SingleThreadedSearcher, \
-    ClosenessStepper, SquareStateEvaluator, PrintLogger, report, stats
+    ClosenessStepper, SquareStateEvaluator, PrintLogger, report, stats, energy_sum, fast_search, energy_sum_of_square
 from text_format import write_text, read_text
 from xlrd import open_workbook
 from xlutils.copy import copy
@@ -41,6 +41,14 @@ def test_optimize():
     )
     state, e1 = searcher.search(initial, n=1)
     _, e2 = searcher.search(initial, n=100)
+    assert e2 < e1
+
+
+def test_fast_search():
+    initial = start_seating()
+    score = energy_sum_of_square
+    e1 = score(initial)
+    e2 = score(fast_search(initial, score=score, n=100))
     assert e2 < e1
 
 

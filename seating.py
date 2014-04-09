@@ -1,6 +1,7 @@
 from StringIO import StringIO
 from operator import itemgetter
 import random
+import itertools
 
 from bunch import Bunch
 import numpy
@@ -26,7 +27,6 @@ class State(Bunch):
 
         self.fixed = fixed if fixed is not None else numpy.zeros(seating.shape, dtype=bool)
         self.geometry = geometry
-        self.closeness = None
 
     def __eq__(self, other):
         if type(other) != State:
@@ -112,7 +112,6 @@ class State(Bunch):
             return False
         self.seating[p1, i:j], self.seating[p2, i:j] = p2_seating.copy(), p1_seating.copy()
         self.geometry[i:j, p1], self.geometry[i:j, p2] = self.geometry[i:j, p2].copy(), self.geometry[i:j, p1].copy()
-        self.closeness = None
         return True
 
     def shuffle(self):
@@ -124,6 +123,62 @@ class State(Bunch):
                 if self.swap(i, j, p1, p2):
                     self.seating = self.seating.copy()
                     self.geometry = self.geometry.copy()
+
+
+def closeness(state):
+    result = numpy.dot(state.seating, state.geometry)
+    numpy.fill_diagonal(result, 0)
+    return result
+
+
+def energy_sum(state):
+    n = closeness(state)
+    return sum(n[n > 1])
+
+
+def energy_sum_of_square(state):
+    n = closeness(state)
+    return sum(n[n > 1] ** 2)
+
+
+def fast_search(initial_state, score=energy_sum_of_square, n=1000):
+
+    choices = []
+    for i, j in initial_state.group_indexes:
+        if i + 1 < j:
+            persons = numpy.where(initial_state.seating[:, i:j].any(axis=1))[0]
+            fixed_persons = numpy.where(initial_state.fixed[:, i:j].any(axis=1))[0]
+            persons = [person for person in persons if person not in fixed_persons]
+            choices.append((i, j, persons))
+
+    def _swap(state, i, j, p1, p2):
+        state.seating[p1, i:j], state.seating[p2, i:j] = state.seating[p2, i:j].copy(), state.seating[p1, i:j].copy()
+        state.geometry[i:j, p1], state.geometry[i:j, p2] = state.geometry[i:j, p2].copy(), state.geometry[i:j, p1].copy()
+
+    steps = 5
+
+    choice_iterator = itertools.cycle(choices)
+
+    state = initial_state
+    e = score(state)
+    for _ in range(n):
+        i, j, persons = next(choice_iterator)
+        random.shuffle(persons)
+        pivot = min(steps, len(persons) / 2)
+        a, b, = persons[:pivot], persons[pivot:]
+        swaps = [(p1, random.choice(b)) for p1 in a]
+        for p1, p2 in swaps:
+            _swap(state, i, j, p1, p2)
+        new_e = score(state)
+        if new_e >= e:
+            swaps.reverse()
+            for p1, p2 in swaps:
+                _swap(state, i, j, p1, p2)
+        else:
+            print e
+            e = new_e
+
+    return state
 
 
 def start_seating(persons=150, meals=5, groups=10, positions=15):
@@ -205,12 +260,9 @@ class ClosenessEvaluator(object):
 
 class TablePositionAgnosticClosnessEvaluator(ClosenessEvaluator):
     def closeness(self, state):
-        if state.closeness is not None:
-            return state.closeness
         result = numpy.dot(state.seating * state.weights, state.geometry)
         size = result.shape[0]
         result[numpy.arange(size), numpy.arange(size)] = 0
-        state.closeness = result
         return result
 
 
@@ -348,7 +400,7 @@ def stats(state):
             if i < j:
                 result.append((i, j, meal_closeness[i, j], group_closeness[i, j]))
 
-    result.sort(key=itemgetter(2))
+    result.sort(key=itemgetter(2), reverse=True)
 
     return [("%s-%s" % (state.names[i], state.names[j]), meal_closeness, group_closeness) for i, j, meal_closeness, group_closeness in result if meal_closeness > 1]
 

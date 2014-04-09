@@ -1,22 +1,25 @@
-all: virtual_env test
+PYTHON = ./env/bin/python
+PIP = ./env/bin/pip
 
-virtual_env:
+all: ./env/bin/python test
+
+$(PYTHON):
 	virtualenv --no-site-packages env
-	env/bin/pip install numpy 
-	env/bin/pip install bunch 
-	env/bin/pip install xlutils
-	env/bin/pip install requests 
-	env/bin/pip install pytest 
-	env/bin/pip install simplejson
+	$(PIP) install numpy
+	$(PIP) install bunch
+	$(PIP) install xlutils
+	$(PIP) install requests
+	$(PIP) install pytest
+	$(PIP) install simplejson
 
 test:
 	env/bin/py.test tests.py
 
 master:
-	env/bin/python distributed_seating.py --addr 127.0.0.1 --port 5000
+	$(PYTHON) distributed_seating.py --addr 127.0.0.1 --port 5000
 
 slave:
-	env/bin/python distributed_seating.py --addr 127.0.0.1 --port 5000 --slave
+	$(PYTHON) distributed_seating.py --addr 127.0.0.1 --port 5000 --slave
 
 clean:
 	rm -rf env
